@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Synthetic descent images of the lunar south pole, with exact per-pixel ground truth, for testing vision-based navigation.">
+<meta property="og:title" content="Penombra">
+<meta property="og:description" content="Descent images of the lunar south pole, in the light a lander will really meet. Exact ground truth for every pixel.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://roccocherubini.github.io/penombra/assets/og.jpg">
+<meta property="og:url" content="https://roccocherubini.github.io/penombra/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<title>Penombra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one descent from 3 km to the rim. A readable text column, broken by wide image plates; pure black so the lunar sky and shadows run into the page. */
+:root {
+  --void: #000000;        /* page = lunar sky and shadow */
+  --plate: #0e0e0d;       /* raised surfaces */
+  --rule: #2a2925;        /* hairlines */
+  --dust: #85817a;        /* labels, captions */
+  --ash: #b8b4ab;         /* secondary text */
+  --regolith: #ebe7df;    /* primary text = sunlit ground */
+  --sun: #f2b44c;         /* used only for the Sun */
+  --veil: rgba(0, 0, 0, 0.78);
+  --display: "Bodoni Moda", "Bodoni 72", Didot, "Times New Roman", serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --gutter: clamp(16px, 4vw, 44px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--regolith);
+  font: 400 17px/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+img, video { max-width: 100%; display: block; }
+[hidden] { display: none !important; }
+a { color: var(--regolith); text-decoration-color: var(--dust); text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--regolith); }
+:focus-visible { outline: 2px solid var(--regolith); outline-offset: 3px; }
+
+.wrap { max-width: 1200px; margin-inline: auto; padding-inline: var(--gutter); }
+.prose { max-width: 62ch; }
+.prose p { margin: 0; color: var(--ash); }
+.prose p + p { margin-top: 1em; }
+.label {
+  font: 500 11.5px/1.3 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+h2 {
+  font: 400 clamp(34px, 5.2vw, 62px)/1.04 var(--display);
+  letter-spacing: -.01em;
+  max-width: 18ch;
+}
+.num { font-variant-numeric: tabular-nums; }
+
+/* header */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: var(--veil);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 56px; }
+.mark { font: 500 22px/1 var(--display); letter-spacing: .02em; text-decoration: none; }
+.top nav { display: flex; gap: clamp(14px, 2.4vw, 28px); }
+.top nav a { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); text-decoration: none; }
+.top nav a:hover { color: var(--regolith); }
+@media (max-width: 720px) { .top nav a:not(.keep) { display: none; } }
+
+/* hero */
+.hero { padding-block: clamp(36px, 6vw, 72px) 0; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 13fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+.hero-text { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.name { display: flex; flex-direction: column; gap: 4px; }
+h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em; }
+.gloss { font: italic 400 17px/1.3 var(--display); color: var(--dust); }
+.gloss b { font-weight: 400; color: var(--ash); }
+.lede { font: 400 clamp(22px, 2.3vw, 28px)/1.25 var(--display); margin: 0; max-width: 26ch; text-wrap: balance; }
+.hero-text > p:not(.lede) { margin: 0; color: var(--ash); max-width: 44ch; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border: 1px solid var(--regolith);
+  font: 500 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  text-decoration: none; color: var(--void); background: var(--regolith);
+}
+.btn:hover { background: var(--void); color: var(--regolith); }
+.btn.ghost { background: transparent; color: var(--regolith); border-color: var(--rule); }
+.btn.ghost:hover { border-color: var(--regolith); }
+
+.cam { margin: 0; display: flex; flex-direction: column; min-width: 0; }
+.cam-view { position: relative; aspect-ratio: 1; max-width: 100%; background: var(--void); }
+.cam-view video { width: 100%; height: 100%; object-fit: cover; }
+.cam-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-block: 10px; font: 500 12px/1.4 var(--mono); letter-spacing: .06em; color: var(--regolith); }
+.cam-bar:first-child { border-bottom: 1px solid var(--rule); margin-bottom: 10px; }
+.cam-bar:last-child { border-top: 1px solid var(--rule); margin-top: 10px; }
+.cam-bar span { white-space: nowrap; }
+.cam-bar .k { color: var(--dust); margin-right: 6px; }
+.cam-bar .sun { color: var(--sun); }
+.cam-bar .grow { flex: 1; }
+.reticle { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; transform: translate(-50%, -50%); pointer-events: none; }
+.reticle::before, .reticle::after { content: ""; position: absolute; inset: 0; border: 1px solid var(--regolith); opacity: .75; }
+.reticle::before { clip-path: polygon(0 0, 30% 0, 30% 1px, 1px 1px, 1px 30%, 0 30%, 0 70%, 1px 70%, 1px calc(100% - 1px), 30% calc(100% - 1px), 30% 100%, 0 100%); }
+.reticle::after { clip-path: polygon(70% 0, 100% 0, 100% 30%, calc(100% - 1px) 30%, calc(100% - 1px) 1px, 70% 1px, 70% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) 70%, 100% 70%, 100% 100%, 70% 100%); }
+.reticle i { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); font: 500 10px/1 var(--mono); font-style: normal; letter-spacing: .12em; color: var(--regolith); text-shadow: 0 0 4px var(--void), 0 0 2px var(--void); }
+.playtoggle { background: transparent; color: var(--ash); border: 1px solid var(--rule); font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 7px 9px; cursor: pointer; }
+.playtoggle:hover { border-color: var(--regolith); color: var(--regolith); }
+
+.ray { margin: clamp(36px, 5vw, 60px) 0 0; display: flex; flex-direction: column; gap: 10px; }
+.ray svg { width: 100%; height: auto; overflow: visible; }
+.ray figcaption { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ray figcaption span:last-child { color: var(--sun); }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+  .lede { max-width: 30ch; }
+}
+
+/* sections */
+.sec { padding-block: clamp(72px, 10vw, 136px) 0; }
+.sec-head { display: flex; flex-direction: column; gap: 18px; margin-bottom: clamp(32px, 4.5vw, 52px); }
+
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); margin-top: clamp(40px, 5vw, 64px); }
+.fact { border-top: 1px solid var(--rule); padding-top: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fact strong { font: 400 clamp(46px, 5.6vw, 76px)/1 var(--display); font-variant-numeric: lining-nums tabular-nums; }
+.fact strong.sun { color: var(--sun); }
+.fact span { color: var(--ash); font-size: 15px; line-height: 1.5; max-width: 30ch; }
+@media (max-width: 720px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+
+/* before / after */
+.split { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: clamp(28px, 4vw, 56px); align-items: start; }
+@media (max-width: 900px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.compare-wrap { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.seg { display: flex; gap: 0; align-self: flex-start; border: 1px solid var(--rule); }
+.seg button { background: transparent; color: var(--ash); border: 0; padding: 9px 14px; font: 500 12px/1 var(--mono); letter-spacing: .06em; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--regolith); color: var(--void); }
+.compare { position: relative; aspect-ratio: 1; max-width: 100%; overflow: hidden; background: var(--plate); user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+.compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.compare .after { clip-path: inset(0 0 0 var(--pos, 50%)); }
+.compare .tag { position: absolute; top: 12px; font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; background: var(--veil); padding: 6px 8px; color: var(--regolith); }
+.compare .tag.l { left: 12px; }
+.compare .tag.r { right: 12px; }
+.handle { position: absolute; top: 0; bottom: 0; left: var(--pos, 50%); width: 0; pointer-events: none; }
+.handle::before { content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: var(--regolith); }
+.handle::after { content: "◂ ▸"; position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); background: var(--regolith); color: var(--void); font: 500 12px/1 var(--mono); padding: 9px 8px; white-space: nowrap; }
+.compare input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; }
+.compare input:focus-visible ~ .handle::after { outline: 2px solid var(--regolith); outline-offset: 3px; }
+.cap { color: var(--dust); font-size: 14px; line-height: 1.5; margin: 0; }
+.adds { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
+.adds li { border-top: 1px solid var(--rule); padding-block: 18px; display: flex; flex-direction: column; gap: 6px; }
+.adds li:last-child { border-bottom: 1px solid var(--rule); }
+.adds strong { font: 400 clamp(30px, 3.4vw, 42px)/1 var(--display); font-variant-numeric: lining-nums; }
+.adds span { color: var(--ash); font-size: 15px; line-height: 1.5; }
+.adds em { font-style: normal; color: var(--dust); font-size: 13.5px; }
+
+/* ground truth */
+.layers { position: relative; aspect-ratio: 1; max-width: 100%; background: var(--plate); }
+.layers img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s ease; }
+.layers img.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .layers img { transition: none; } }
+.spec { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.spec dl { margin: 0; display: grid; grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr); gap: 10px 18px; }
+.spec dt { font: 500 11.5px/1.6 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); padding-top: 2px; }
+.spec dd { margin: 0; color: var(--ash); font-size: 15.5px; line-height: 1.55; }
+.spec dd + dt, .spec dd + dt + dd { border-top: 1px solid var(--rule); padding-top: 10px; }
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.check { background: var(--plate); padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.check strong { font: 400 clamp(28px, 3vw, 40px)/1 var(--display); white-space: nowrap; font-variant-numeric: lining-nums; }
+.check span { color: var(--ash); font-size: 14px; line-height: 1.45; }
+.wide { margin: clamp(40px, 5vw, 64px) 0 0; display: flex; flex-direction: column; gap: 12px; }
+.wide video { width: 100%; height: auto; aspect-ratio: 1440 / 525; background: var(--plate); }
+@media (max-width: 540px) { .checks { grid-template-columns: minmax(0, 1fr); } .spec dl { grid-template-columns: minmax(0, 1fr); } .spec dd + dt + dd { border-top: 0; padding-top: 0; } }
+
+/* how it is built */
+.parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--rule); }
+.part { padding: 24px 24px 28px 0; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--rule); min-width: 0; }
+.part:not(:nth-child(3n+1)) { padding-left: 24px; border-left: 1px solid var(--rule); }
+.part h3 { font: 600 18px/1.3 var(--body); }
+.part p { margin: 0; color: var(--ash); font-size: 15.5px; line-height: 1.55; }
+.part .sunword { color: var(--sun); }
+@media (max-width: 900px) {
+  .parts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .part:not(:nth-child(3n+1)) { padding-left: 0; border-left: 0; }
+  .part:nth-child(2n) { padding-left: 24px; border-left: 1px solid var(--rule); }
+}
+@media (max-width: 600px) {
+  .parts { grid-template-columns: minmax(0, 1fr); }
+  .part:nth-child(2n) { padding-left: 0; border-left: 0; }
+  .part { padding-right: 0; }
+}
+
+/* dataset */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 clamp(32px, 4vw, 48px); padding: 0; list-style: none; }
+.strip li { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.strip img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--plate); }
+.strip .alt { font: 500 12px/1.4 var(--mono); letter-spacing: .04em; color: var(--ash); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.strip .alt b { font-weight: 500; color: var(--regolith); }
+@media (max-width: 720px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ds { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: clamp(28px, 4vw, 56px); align-items: start; }
+@media (max-width: 900px) { .ds { grid-template-columns: minmax(0, 1fr); } }
+.status { background: var(--plate); padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.status p { margin: 0; color: var(--ash); font-size: 15px; line-height: 1.55; }
+.pill { align-self: flex-start; font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--regolith); padding: 7px 9px; }
+
+/* who */
+.who { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); }
+.who div { border-top: 1px solid var(--rule); padding-top: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.who h3 { font: 400 clamp(24px, 2.4vw, 30px)/1.15 var(--display); }
+.who p { margin: 0; color: var(--ash); font-size: 15.5px; line-height: 1.55; }
+@media (max-width: 800px) { .who { grid-template-columns: minmax(0, 1fr); } }
+.custom { margin-top: clamp(40px, 5vw, 64px); border: 1px solid var(--rule); padding: clamp(22px, 3.5vw, 40px); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 40px; align-items: center; }
+.custom h3 { font: 400 clamp(26px, 3vw, 38px)/1.1 var(--display); margin-bottom: 10px; }
+.custom p { margin: 0; color: var(--ash); max-width: 60ch; }
+@media (max-width: 720px) { .custom { grid-template-columns: minmax(0, 1fr); } .custom .btn { justify-self: start; } }
+
+/* status + contact */
+.limits { margin: 18px 0 0; padding: 0 0 0 1.1em; color: var(--ash); display: flex; flex-direction: column; gap: 6px; }
+.limits li::marker { color: var(--dust); }
+.contact { padding-block: clamp(72px, 10vw, 136px); }
+.contact-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(28px, 4vw, 56px); align-items: end; border-top: 1px solid var(--rule); padding-top: clamp(32px, 4vw, 48px); }
+@media (max-width: 860px) { .contact-grid { grid-template-columns: minmax(0, 1fr); } }
+.who-am-i { display: flex; flex-direction: column; gap: 6px; }
+.who-am-i strong { font: 400 clamp(30px, 3.4vw, 40px)/1.1 var(--display); }
+.who-am-i span { color: var(--ash); }
+.lines { display: flex; flex-direction: column; gap: 0; margin: 0; }
+.lines > div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 14px; align-items: center; border-bottom: 1px solid var(--rule); padding-block: 14px; }
+.lines dt { font: 500 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+.lines dd { margin: 0; font: 400 15.5px/1.4 var(--mono); overflow-wrap: anywhere; user-select: all; }
+.copy { background: transparent; color: var(--ash); border: 1px solid var(--rule); font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 7px 9px; cursor: pointer; }
+.copy:hover { color: var(--regolith); border-color: var(--regolith); }
+.todo { outline: 1px dashed var(--sun); outline-offset: 3px; color: var(--sun); }
+
+footer { border-top: 1px solid var(--rule); padding-block: 28px 40px; }
+footer .wrap { display: flex; flex-direction: column; gap: 10px; }
+footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max-width: 110ch; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="#top" aria-label="Penombra, back to top">Penombra</a>
+    <nav aria-label="Sections">
+      <a href="#problem">Problem</a>
+      <a href="#detail">Detail</a>
+      <a href="#truth">Ground truth</a>
+      <a href="#dataset">Dataset</a>
+      <a class="keep" href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-text">
+          <span class="label">Synthetic imagery for vision-based navigation</span>
+          <div class="name">
+            <h1>Penombra</h1>
+            <span class="gloss"><b>penombra</b>, Italian: half-light</span>
+          </div>
+          <p class="lede">Descent images of the lunar south pole, in the light a lander will really meet.</p>
+          <p>Physically based, rendered from NASA elevation data and the real position of the Sun, and delivered with the exact answer for every pixel. Navigation software can be tested here before it flies.</p>
+          <div class="actions">
+            <a class="btn" href="#detail">See the detail</a>
+            <a class="btn ghost" href="#contact">Request a sequence</a>
+          </div>
+        </div>
+
+        <figure class="cam" aria-label="Simulated navigation camera during a powered descent to the rim of Shackleton crater, from 3,000 m to 500 m above the target, ten times faster than real time">
+          <div class="cam-bar" aria-hidden="true">
+            <span><span class="k">T+</span><span id="h-t" class="num">000</span> s</span>
+            <span><span class="k">ALT</span><span id="h-alt" class="num">3,000</span> m above target</span>
+          </div>
+          <div class="cam-view">
+            <video id="hero" src="assets/hero.mp4" poster="assets/hero-poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+            <div class="reticle" aria-hidden="true"><i>TARGET</i></div>
+          </div>
+          <div class="cam-bar">
+            <span aria-hidden="true"><span class="k">SHADOW</span><span id="h-sh" class="num">43</span>% of view</span>
+            <span class="sun" aria-hidden="true"><span class="k">SUN EL</span>1.40°</span>
+            <span class="grow"></span>
+            <button class="playtoggle" id="h-toggle" type="button">Pause</button>
+          </div>
+        </figure>
+      </div>
+
+      <figure class="ray">
+        <svg viewBox="0 0 1000 26" role="img" aria-label="A line rising at 1.4 degrees above a horizontal line">
+          <defs>
+            <linearGradient id="raygrad" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0" stop-color="#f2b44c" stop-opacity="0"></stop>
+              <stop offset=".55" stop-color="#f2b44c" stop-opacity=".55"></stop>
+              <stop offset="1" stop-color="#f2b44c" stop-opacity="1"></stop>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="25.5" x2="1000" y2="25.5" stroke="#2a2925" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+          <line x1="0" y1="25.5" x2="1000" y2="1.04" stroke="url(#raygrad)" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+        </svg>
+        <figcaption class="label">
+          <span>Horizon</span>
+          <span>Sun at 1.4°, drawn to scale: its height over the landing site</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="problem">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">The problem</span>
+        <h2>At the south pole, the Sun never climbs</h2>
+      </div>
+      <div class="prose">
+        <p>Near the lunar south pole the Sun circles the horizon and stays within a few degrees of it. Light arrives from the side, so even small relief throws long shadows, and those shadows swing round as the Sun moves. Craters, rocks and slopes look very different from the same features under a high Sun.</p>
+        <p>A lander that navigates by its camera has to recognise craters, track the ground and spot hazards in exactly this light. Testing that software needs images taken in it, with the right answer known for every pixel. Real descent images of the polar regions are few, and none come with that answer.</p>
+      </div>
+      <div class="facts">
+        <div class="fact">
+          <strong class="sun">1.4°</strong>
+          <span>Height of the Sun above the horizon over the landing site in the sample sequence.</span>
+        </div>
+        <div class="fact">
+          <strong>80 m</strong>
+          <span>Length of the shadow cast by a rock 2 m tall at that Sun height.</span>
+        </div>
+        <div class="fact">
+          <strong>Half</strong>
+          <span>Share of the camera view in shadow at the worst point of the descent, about 1.6 km above the target.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="detail">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">What Penombra adds</span>
+        <h2>What the best map cannot show</h2>
+      </div>
+      <div class="split">
+        <div class="compare-wrap">
+          <div class="seg" role="group" aria-label="Altitude">
+            <button type="button" data-alt="500" aria-pressed="true">500 m above target</button>
+            <button type="button" data-alt="690" aria-pressed="false">690 m</button>
+          </div>
+          <div class="compare" id="compare" style="--pos: 50%">
+            <img id="ba-dem" src="assets/ba-500-dem.jpg" alt="Camera view rendered from the LOLA 5 m elevation map alone: smooth, blurred ground with triangular artefacts">
+            <img id="ba-pen" class="after" src="assets/ba-500-penombra.jpg" alt="Same view rendered by Penombra: small craters, boulders and rough ground with sharp shadows">
+            <span class="tag l">Elevation map only</span>
+            <span class="tag r">Penombra</span>
+            <input id="ba-range" type="range" min="0" max="100" step="0.5" value="50" aria-label="Drag to compare the elevation map alone with Penombra">
+            <span class="handle" aria-hidden="true"></span>
+          </div>
+          <p class="cap">Same place, same Sun, same camera. Drag the handle. At 500 m one pixel covers about 40 cm of ground, twelve times finer than the 5 m grid of the elevation map.</p>
+        </div>
+        <div class="prose">
+          <p>The most detailed public elevation map of the site, from NASA's Lunar Orbiter Laser Altimeter, has one height every 5 m. Close to the ground that is far too coarse: rendered on its own, the surface looks smooth and blurred, with the triangles of the map showing through.</p>
+          <p style="margin-top: 1em">Penombra adds what the map cannot resolve, with sizes and numbers taken from measurements of the Moon.</p>
+          <ul class="adds" style="margin-top: 22px">
+            <li><strong class="num">18,145</strong><span>small craters, 4 to 20 m across</span><em>Equilibrium size distribution, Minton et al. 2019</em></li>
+            <li><strong class="num">28,949</strong><span>boulders, 0.4 to 8 m across</span><em>Counts from Chandrayaan-2 images near Shackleton, Nagori et al. 2024</em></li>
+            <li><strong>&lt; 10 m</strong><span>roughness, calibrated on the map itself</span><em>Every crater and boulder is listed in a catalogue that comes with the data</em></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="truth">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Ground truth</span>
+        <h2>Every pixel comes with its answer</h2>
+      </div>
+      <div class="split">
+        <div class="compare-wrap">
+          <div class="seg" role="tablist" aria-label="Layer">
+            <button type="button" role="tab" data-layer="camera" aria-selected="true">Camera</button>
+            <button type="button" role="tab" data-layer="depth" aria-selected="false">Depth</button>
+            <button type="button" role="tab" data-layer="normals" aria-selected="false">Normals</button>
+            <button type="button" role="tab" data-layer="hazards" aria-selected="false">Hazards</button>
+          </div>
+          <div class="layers" role="tabpanel" aria-live="polite">
+            <img class="on" data-layer="camera" src="assets/gt-camera.jpg" alt="Simulated camera image 500 m above the target">
+            <img data-layer="depth" src="assets/gt-depth.jpg" alt="Depth map of the same view" loading="lazy">
+            <img data-layer="normals" src="assets/gt-normals.jpg" alt="Surface normals of the same view" loading="lazy">
+            <img data-layer="hazards" src="assets/gt-hazards.jpg" alt="Landing hazard map of the same view: slopes and boulders" loading="lazy">
+          </div>
+          <p class="cap" id="layer-cap">The simulated navigation camera, 500 m above the target, with noise, blur and 12-bit output.</p>
+        </div>
+        <div class="spec">
+          <dl>
+            <dt>Per pixel</dt>
+            <dd>Calibrated brightness (I/F), distance from the camera, 3D position, surface orientation, motion to the next frame, and which terrain source it came from</dd>
+            <dt>Per frame</dt>
+            <dd>Camera position and attitude, lens model, Sun direction, exposure time</dd>
+            <dt>Per scene</dt>
+            <dd>Catalogue of every generated crater and boulder, with position and size</dd>
+          </dl>
+          <div class="checks">
+            <div class="check"><strong>0.001 px</strong><span>Median error when the 3D points are projected back into the image, on every frame</span></div>
+            <div class="check"><strong>0.1%</strong><span>Agreement between rendered brightness and the reflectance model on sunlit pixels</span></div>
+          </div>
+        </div>
+      </div>
+      <figure class="wide">
+        <video src="assets/panels.mp4" poster="assets/panels-poster.jpg" muted loop playsinline controls preload="none" aria-label="The full descent shown three ways: camera image, depth and landing hazards"></video>
+        <figcaption class="cap">The whole descent, 3,000 m to 500 m in 120 s, with two of its ground-truth layers.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">How it is built</span>
+        <h2>Public data and physics, checked on every frame</h2>
+      </div>
+      <div class="parts">
+        <div class="part">
+          <span class="label">Terrain</span>
+          <h3>Real elevation maps, near and far</h3>
+          <p>NASA LOLA data at 5 m around the site, 80 m out to 30 km and 400 m out to 150 km, on a curved Moon. One seamless surface, so distant ridges cast their shadows too.</p>
+        </div>
+        <div class="part">
+          <span class="label">Sun</span>
+          <h3>The <span class="sunword">real Sun</span> on a real date</h3>
+          <p>Sun position from NASA's SPICE ephemerides. Each descent is planned for a moment when the Sun is truly above the local skyline, not just above the flat horizon.</p>
+        </div>
+        <div class="part">
+          <span class="label">Light</span>
+          <h3>Lunar reflectance</h3>
+          <p>The Lunar-Lambert model with the McEwen phase function, rendered with Blender Cycles, including light bounced between slopes. Pixel values are calibrated reflectance.</p>
+        </div>
+        <div class="part">
+          <span class="label">Detail</span>
+          <h3>What the map cannot resolve</h3>
+          <p>Small craters, boulders and roughness generated from published lunar statistics. A fixed seed keeps the same world in every frame, so every frame agrees with the others.</p>
+        </div>
+        <div class="part">
+          <span class="label">Camera</span>
+          <h3>A navigation camera, with its flaws</h3>
+          <p>A generic 12-bit camera: optics, automatic exposure, lens blur, vignetting, noise, and motion blur computed from the real movement during each exposure.</p>
+        </div>
+        <div class="part">
+          <span class="label">Trajectory</span>
+          <h3>A flyable descent</h3>
+          <p>A powered-descent guidance law, written in Python and in MATLAB with identical results, with checks on thrust and clearance above the ground.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="dataset">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Sample dataset v0</span>
+        <h2>Descent to the rim of Shackleton</h2>
+      </div>
+      <ul class="strip">
+        <li><img src="assets/descent-00.jpg" alt="Frame 1: 3,000 m above the target, Shackleton crater in shadow"><span class="alt"><span>T+0 s</span><b class="num">3,000 m</b></span></li>
+        <li><img src="assets/descent-12.jpg" alt="Frame 13: 1,467 m above the target"><span class="alt"><span>T+63 s</span><b class="num">1,467 m</b></span></li>
+        <li><img src="assets/descent-18.jpg" alt="Frame 19: 852 m above the target"><span class="alt"><span>T+94 s</span><b class="num">852 m</b></span></li>
+        <li><img src="assets/descent-23.jpg" alt="Frame 24: 500 m above the target"><span class="alt"><span>T+120 s</span><b class="num">500 m</b></span></li>
+      </ul>
+      <div class="ds">
+        <div class="spec">
+          <dl>
+            <dt>Frames</dt><dd>24 images, 1024 × 1024 px, 45° field of view</dd>
+            <dt>Descent</dt><dd>From 3,000 m to 500 m above the target in 120 s</dd>
+            <dt>Date</dt><dd>27 November 2026, 15:00 UTC</dd>
+            <dt>Sun</dt><dd>1.40° above the horizon, 4.05° above the real skyline</dd>
+            <dt>Ground truth</dt><dd>Per pixel, per frame and per scene, as above</dd>
+            <dt>Size</dt><dd>734 MB</dd>
+            <dt>Licence</dt><dd>CC BY 4.0, free to use with attribution</dd>
+          </dl>
+        </div>
+        <div class="status">
+          <span class="pill">Coming November 2026</span>
+          <p>The sample dataset will be published on Zenodo with a DOI, together with a short program to load it. Write to be told when it is out.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="who">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Who it is for</span>
+        <h2>For anyone who has to land by sight</h2>
+      </div>
+      <div class="who">
+        <div>
+          <h3>Lander navigation teams</h3>
+          <p>Test crater matching, visual odometry and hazard detection in the light they will meet, and measure the errors against exact answers.</p>
+        </div>
+        <div>
+          <h3>Researchers and students</h3>
+          <p>A benchmark with known ground truth for papers and theses, and training and test data for learned detectors.</p>
+        </div>
+        <div>
+          <h3>Camera and sensor teams</h3>
+          <p>Check exposure, dynamic range and noise on scenes that are half in deep shadow.</p>
+        </div>
+      </div>
+      <div class="custom">
+        <div>
+          <h3>A sequence for your mission</h3>
+          <p>Your landing site, your trajectory, your date and your camera, with the same ground truth. A 24-frame sequence renders in about 11 minutes on a laptop, so changes are quick.</p>
+        </div>
+        <a class="btn" href="#contact">Get in touch</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="status">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Where it stands</span>
+        <h2>Version 0, October 2026</h2>
+      </div>
+      <div class="prose">
+        <p>One site, one date, one trajectory so far. Next come validation against real images from NASA's Lunar Reconnaissance Orbiter, more sites and lighting conditions, and a demonstration with a navigation algorithm measured against the ground truth.</p>
+        <ul class="limits">
+          <li>Rocks and soil share the same reflectance; there is no Earthshine.</li>
+          <li>The distant terrain is smoother than the terrain near the target.</li>
+          <li>The camera is generic, not a model of a specific flight camera.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Contact</span>
+        <h2>Feedback from navigation engineers is very welcome</h2>
+      </div>
+      <div class="contact-grid">
+        <div class="who-am-i">
+          <strong>Rocco Cherubini</strong>
+          <span>Turin, Italy</span>
+        </div>
+        <dl class="lines">
+          <div>
+            <dt>Email</dt>
+            <dd id="email"><a href="mailto:roccocherubini5@gmail.com">roccocherubini5@gmail.com</a></dd>
+            <button class="copy" type="button" data-copy="email">Copy</button>
+          </div>
+          <div>
+            <dt>LinkedIn</dt>
+            <dd><a href="https://www.linkedin.com/in/rocco-maria-cherubini-a941bb3a0" target="_blank" rel="noopener">rocco-maria-cherubini</a></dd>
+            <span></span>
+          </div>
+          <div>
+            <dt>GitHub</dt>
+            <dd><a href="https://github.com/roccocherubini/penombra" target="_blank" rel="noopener">roccocherubini/penombra</a></dd>
+            <span></span>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Elevation data: NASA LOLA (Barker et al. 2021, Planetary and Space Science 203; Smith et al. 2010, Space Science Reviews 150). Sun and Moon positions: NASA NAIF SPICE. Photometry: McEwen 1991, Icarus 92. Small craters: Minton et al. 2019, Icarus 326. Boulders: Nagori et al. 2024, LPSC 55. Roughness: Rosenburg et al. 2011, JGR 116. Rendering approach inspired by CORTO (Politecnico di Milano).</p>
+    <p>Images and data © 2026 Rocco Cherubini, released under CC BY 4.0.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Hero: the clip shows the 24 rendered frames, 0.5 s of video per 5.22 s of descent.
+  var ALT = [3000.0, 2869.1, 2737.4, 2605.4, 2473.4, 2341.9, 2211.2, 2081.7, 1953.9, 1828.1, 1704.7, 1584.1,
+             1466.7, 1353.0, 1243.2, 1137.8, 1037.2, 941.8, 851.9, 768.0, 690.5, 619.7, 556.1, 500.0];
+  var LIT = [.571, .566, .562, .555, .550, .544, .538, .536, .526, .516, .508, .504,
+             .506, .507, .512, .515, .522, .533, .550, .566, .583, .606, .627, .647];
+  var SEG = 0.5, DT = 120 / 23;
+  var v = document.getElementById('hero');
+  var elT = document.getElementById('h-t'), elA = document.getElementById('h-alt'), elS = document.getElementById('h-sh');
+  var btn = document.getElementById('h-toggle');
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function hud() {
+    var x = Math.min(v.currentTime / SEG, 23);
+    var k = Math.min(Math.floor(x), 22), s = x - k;
+    var alt = ALT[k] + (ALT[k + 1] - ALT[k]) * s;
+    var lit = LIT[k] + (LIT[k + 1] - LIT[k]) * s;
+    elT.textContent = String(Math.round(x * DT)).padStart(3, '0');
+    elA.textContent = fmt(alt);
+    elS.textContent = Math.round((1 - lit) * 100);
+  }
+  function loop() { hud(); if (!v.paused) requestAnimationFrame(loop); }
+  v.addEventListener('play', function () { btn.textContent = 'Pause'; requestAnimationFrame(loop); });
+  v.addEventListener('pause', function () { btn.textContent = 'Play'; hud(); });
+  v.addEventListener('seeked', hud);
+  btn.addEventListener('click', function () { if (v.paused) { v.play().catch(function () {}); } else { v.pause(); } });
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { v.removeAttribute('autoplay'); v.pause(); btn.textContent = 'Play'; }
+  else { v.play().catch(function () { btn.textContent = 'Play'; }); }
+
+  // Before / after
+  var cmp = document.getElementById('compare'), range = document.getElementById('ba-range');
+  range.addEventListener('input', function () { cmp.style.setProperty('--pos', range.value + '%'); });
+  var dem = document.getElementById('ba-dem'), pen = document.getElementById('ba-pen');
+  document.querySelectorAll('[data-alt]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var a = b.getAttribute('data-alt');
+      dem.src = 'assets/ba-' + a + '-dem.jpg';
+      pen.src = 'assets/ba-' + a + '-penombra.jpg';
+      document.querySelectorAll('[data-alt]').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+    });
+  });
+
+  // Ground-truth layers
+  var CAP = {
+    camera: 'The simulated navigation camera, 500 m above the target, with noise, blur and 12-bit output.',
+    depth: 'Distance from the camera to the ground for every pixel, from the true geometry.',
+    normals: 'Orientation of the surface for every pixel, down to single craters and rocks.',
+    hazards: 'Slopes under 10° (green), 10 to 20° (yellow) and over 20° (red), and boulders (magenta).'
+  };
+  var cap = document.getElementById('layer-cap');
+  var tabs = document.querySelectorAll('[data-layer][role="tab"]');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var l = t.getAttribute('data-layer');
+      tabs.forEach(function (o) { o.setAttribute('aria-selected', o === t ? 'true' : 'false'); });
+      document.querySelectorAll('.layers img').forEach(function (im) { im.classList.toggle('on', im.getAttribute('data-layer') === l); });
+      cap.textContent = CAP[l];
+    });
+  });
+
+  // Copy buttons: select the text if the clipboard is refused
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var el = document.getElementById(b.getAttribute('data-copy'));
+      var text = el.textContent.trim();
+      function select() { var r = document.createRange(); r.selectNodeContents(el); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1600); }, select);
+      } else { select(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
