@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Penombra demo: how a lander finds its position by matching its camera to a map, and why the map must be lit like landing day at the lunar south pole.">
+<meta property="og:title" content="Penombra Demo v0">
+<meta property="og:description" content="Same place, Sun turned 60 degrees on the map: the lander is lost. An interactive test with exact ground truth.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://roccocherubini.github.io/penombra/assets/demo/og-demo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<title>Penombra Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a descent told by scrolling. Pinned stages, text that passes over them, one lab to play with. Same black world as the Penombra page. */
+:root {
+  --void: #000000;
+  --plate: #0e0e0d;
+  --plate2: #161614;
+  --rule: #2a2925;
+  --dust: #85817a;
+  --ash: #b8b4ab;
+  --regolith: #ebe7df;
+  --sun: #f2b44c;
+  --good: #4fbf8f;
+  --bad: #e5534b;
+  --veil: rgba(0, 0, 0, 0.78);
+  --display: "Bodoni Moda", "Bodoni 72", Didot, "Times New Roman", serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --gutter: clamp(16px, 4vw, 44px);
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--void); color: var(--regolith); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; display: block; }
+[hidden] { display: none !important; }
+a { color: var(--regolith); text-decoration-color: var(--dust); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--regolith); outline-offset: 3px; }
+.wrap { max-width: 1200px; margin-inline: auto; padding-inline: var(--gutter); }
+.label { font: 500 11.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* top bar */
+.top { position: fixed; top: 0; left: 0; right: 0; z-index: 20; padding-top: env(safe-area-inset-top, 0px); background: var(--veil); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; }
+.mark { font: 500 21px/1 var(--display); text-decoration: none; display: inline-flex; align-items: center; gap: 10px; }
+.mark span { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+.top a.back { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); text-decoration: none; }
+.top a.back:hover { color: var(--regolith); }
+.progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--regolith); opacity: .7; z-index: 21; }
+
+/* pinned scenes */
+.scene { position: relative; }
+.pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+
+/* 1. descent */
+#descent { height: 420vh; }
+#descent .pin { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(14px, 2.4vh, 26px); padding-top: 56px; }
+.frames { position: relative; width: min(54vh, 88vw); aspect-ratio: 1; max-width: 100%; overflow: hidden; flex: none; }
+.frames img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; will-change: opacity, transform; }
+.frames img:first-child { opacity: 1; }
+.frames::after { content: ""; position: absolute; inset: -1px; background: radial-gradient(closest-side, rgba(0, 0, 0, 0) 62%, var(--void) 100%); pointer-events: none; }
+.alt { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; font: 500 12.5px/1 var(--mono); letter-spacing: .08em; white-space: nowrap; }
+.alt .k { color: var(--dust); margin-right: 6px; }
+.alt .sun { color: var(--sun); }
+.say { position: relative; width: 100%; height: clamp(110px, 21vh, 200px); text-align: center; pointer-events: none; flex: none; }
+.say > * { position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; padding-inline: var(--gutter); opacity: 0; transition: none; will-change: opacity, transform; }
+.say h1 { font: 400 clamp(36px, 5.2vw, 76px)/1.02 var(--display); letter-spacing: -.015em; max-width: 16ch; opacity: 1; }
+.say p { font: 400 clamp(28px, 4vw, 56px)/1.08 var(--display); max-width: 20ch; color: var(--regolith); }
+.say p em { font-style: italic; color: var(--ash); }
+.cue { position: absolute; bottom: 3vh; right: var(--gutter); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.cue i { width: 1px; height: 38px; background: linear-gradient(var(--regolith), rgba(0, 0, 0, 0)); animation: drip 1.8s var(--ease) infinite; transform-origin: top; }
+@keyframes drip { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+
+/* 2. how it works: pinned stage + passing steps */
+#how { padding-block: 10vh 0; }
+.how-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 5vw, 72px); }
+.steps { padding-block: 22vh 62vh; display: flex; flex-direction: column; gap: 46vh; }
+.step { opacity: .28; transition: opacity .5s var(--ease); max-width: 30ch; }
+.step.on { opacity: 1; }
+.step .label { display: block; margin-bottom: 14px; }
+.step h2 { font: 400 clamp(32px, 4vw, 54px)/1.05 var(--display); }
+.step p { color: var(--ash); margin: 16px 0 0; font-size: 17px; }
+.step p b { color: var(--regolith); font-weight: 500; }
+.stage { position: sticky; top: 0; height: 100vh; height: 100svh; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+.pair { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 5vw, 64px); }
+.pair figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pair .frame { position: relative; aspect-ratio: 1; max-width: 100%; overflow: hidden; background: var(--plate); }
+.pair .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pair figcaption { font: 500 11.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dust); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.links line { stroke-width: 1; stroke-linecap: round; opacity: .85; }
+.links line.g { stroke: var(--good); }
+.links line.b { stroke: var(--bad); }
+.links.drawn line { transition: stroke-dashoffset 1.1s var(--ease); stroke-dashoffset: 0 !important; }
+.box { position: absolute; border: 1px dashed var(--regolith); opacity: 0; transition: opacity .6s var(--ease); }
+.box.on { opacity: 1; }
+.reticle { position: absolute; width: 30px; height: 30px; transform: translate(-50%, -50%) scale(.6); opacity: 0; transition: opacity .5s var(--ease), transform .7s var(--ease); pointer-events: none; }
+.reticle.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.reticle::before, .reticle::after { content: ""; position: absolute; background: var(--regolith); }
+.reticle::before { left: 50%; top: 0; bottom: 0; width: 1.5px; transform: translateX(-50%); }
+.reticle::after { top: 50%; left: 0; right: 0; height: 1.5px; transform: translateY(-50%); }
+.reticle i { position: absolute; inset: 7px; border: 1.5px solid var(--regolith); border-radius: 50%; }
+#how .photo { transition: opacity .8s var(--ease), transform .8s var(--ease); }
+#how[data-step="1"] .photo { opacity: .12; transform: translateX(-18px); }
+#how .map .full { transform-origin: 0 0; transition: transform 1.3s var(--ease), opacity .6s var(--ease) .9s; }
+#how .map .crop { opacity: 0; transition: opacity .6s var(--ease) .8s; }
+#how:not([data-step="1"]) .map .crop { opacity: 1; }
+.readout { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; min-height: 2.6em; }
+.readout strong { font: 400 clamp(30px, 3.4vw, 46px)/1 var(--display); font-variant-numeric: lining-nums; }
+.readout span { color: var(--ash); font-size: 15px; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13.5px; color: var(--ash); }
+.legend i { display: inline-block; width: 18px; height: 2px; vertical-align: middle; margin-right: 8px; }
+
+/* 3. the turning Sun */
+#turn { height: 360vh; }
+#turn .pin { display: grid; align-items: center; }
+.turn-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 5vw, 72px); align-items: center; }
+.turn-text h2 { font: 400 clamp(36px, 4.6vw, 64px)/1.03 var(--display); }
+.turn-text p { color: var(--ash); max-width: 34ch; margin: 18px 0 0; }
+.clock { margin-top: 28px; display: grid; grid-template-columns: auto auto; gap: 6px 26px; justify-content: start; }
+.clock dt { font: 500 11.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+.clock dd { margin: 0; font: 400 clamp(34px, 3.8vw, 52px)/1 var(--display); font-variant-numeric: lining-nums tabular-nums; }
+.clock dd.sunv { color: var(--sun); }
+.verdict { margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; font: 500 12.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 9px 12px; border: 1px solid var(--rule); transition: border-color .4s, color .4s; }
+.verdict i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.verdict.ok { color: var(--good); border-color: var(--good); }
+.verdict.lost { color: var(--bad); border-color: var(--bad); }
+.dialwrap { position: relative; width: min(100%, 72vh); aspect-ratio: 1; margin-inline: auto; max-width: 100%; }
+.dialwrap .maps { position: absolute; inset: 10%; overflow: hidden; border-radius: 50%; background: var(--plate); }
+.dialwrap .maps img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; will-change: opacity; }
+.dialwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+/* 4. the lab */
+.sec { padding-block: clamp(90px, 14vw, 180px) 0; }
+.sec-head { display: flex; flex-direction: column; gap: 18px; margin-bottom: clamp(32px, 4.5vw, 56px); max-width: 60ch; }
+.sec-head h2 { font: 400 clamp(36px, 5.2vw, 70px)/1.02 var(--display); letter-spacing: -.01em; }
+.sec-head p { margin: 0; color: var(--ash); }
+.lab { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+.controls { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.ctl { display: flex; flex-direction: column; gap: 12px; }
+.seg { display: flex; border: 1px solid var(--rule); align-self: flex-start; flex-wrap: wrap; }
+.seg button { background: transparent; color: var(--ash); border: 0; padding: 10px 14px; font: 500 12px/1 var(--mono); letter-spacing: .06em; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--regolith); color: var(--void); }
+.ticks { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ticks button { background: var(--plate); color: var(--ash); border: 1px solid var(--rule); padding: 10px 0; font: 500 12.5px/1 var(--mono); cursor: pointer; transition: background .25s, color .25s, border-color .25s; }
+.ticks button:hover { border-color: var(--ash); }
+.ticks button[aria-pressed="true"] { background: var(--sun); color: var(--void); border-color: var(--sun); }
+input[type="range"] { width: 100%; accent-color: var(--sun); }
+.big { font: 400 clamp(56px, 7vw, 96px)/.95 var(--display); font-variant-numeric: lining-nums; }
+.big small { font: 400 .32em/1 var(--body); color: var(--ash); margin-left: 8px; }
+.status { display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; padding: 10px 14px; border: 1px solid; font: 500 13px/1.2 var(--mono); letter-spacing: .04em; transition: color .3s, border-color .3s; }
+.status i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+.status.ok { color: var(--good); border-color: var(--good); }
+.status.lost { color: var(--bad); border-color: var(--bad); }
+.note { color: var(--dust); font-size: 14px; line-height: 1.5; margin: 0; }
+.lab .frame img { transition: opacity .45s var(--ease); }
+
+/* 5. results grid */
+.grid-wrap { overflow-x: auto; }
+.rgrid { display: grid; grid-template-columns: minmax(118px, auto) repeat(7, minmax(78px, 1fr)); gap: 6px; min-width: 720px; }
+.rgrid .h { font: 500 12px/1.2 var(--mono); color: var(--ash); display: flex; align-items: center; justify-content: center; padding: 8px 0; letter-spacing: .04em; }
+.rgrid .rh { justify-content: flex-start; text-align: left; }
+.rgrid .c { position: relative; padding: 14px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: transform .6s var(--ease), opacity .6s var(--ease); cursor: default; }
+.rgrid .c b { font: 600 20px/1 var(--body); font-variant-numeric: tabular-nums; }
+.rgrid .c small { font-size: 11.5px; opacity: .85; }
+.dots { display: flex; gap: 4px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .7; }
+.dots i.ok { background: currentColor; opacity: 1; }
+.dots i.wr { border-color: var(--bad); background: var(--bad); opacity: 1; }
+.gridnote { margin-top: 18px; display: flex; gap: 22px; flex-wrap: wrap; font-size: 13.5px; color: var(--ash); }
+.gridnote span { display: inline-flex; align-items: center; gap: 8px; }
+.tip { position: fixed; z-index: 30; pointer-events: none; background: var(--plate2); border: 1px solid var(--rule); padding: 10px 12px; font: 400 12.5px/1.5 var(--mono); color: var(--regolith); min-width: 210px; }
+.tip table { border-collapse: collapse; }
+.tip td { padding: 0 10px 0 0; font-variant-numeric: tabular-nums; }
+
+/* 6. takeaways */
+.take { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); }
+.take div { border-top: 1px solid var(--rule); padding-top: 22px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.take strong { font: 400 clamp(48px, 6vw, 84px)/1 var(--display); font-variant-numeric: lining-nums; }
+.take span { color: var(--ash); font-size: 15.5px; line-height: 1.55; max-width: 32ch; }
+.cta { margin-top: clamp(48px, 6vw, 80px); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 12px 18px; border: 1px solid var(--regolith); font: 500 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--void); background: var(--regolith); }
+.btn:hover { background: var(--void); color: var(--regolith); }
+.btn.ghost { background: transparent; color: var(--regolith); border-color: var(--rule); }
+.btn.ghost:hover { border-color: var(--regolith); }
+details.method { margin-top: clamp(56px, 7vw, 96px); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+details.method summary { cursor: pointer; padding: 20px 0; font: 500 13px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); list-style: none; display: flex; justify-content: space-between; }
+details.method summary::after { content: "+"; font-size: 18px; color: var(--regolith); }
+details.method[open] summary::after { content: "–"; }
+details.method dl { margin: 0 0 28px; display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 10px 22px; }
+details.method dt { font: 500 11.5px/1.6 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
+details.method dd { margin: 0; color: var(--ash); font-size: 15.5px; }
+footer { border-top: 1px solid var(--rule); margin-top: clamp(80px, 10vw, 140px); padding-block: 28px 40px; }
+footer p { margin: 0; color: var(--dust); font-size: 13px; }
+
+/* reveal: elements start visible; JS only hides those below the fold, then shows them */
+.rv { transition: opacity .9s var(--ease), transform .9s var(--ease); }
+.rv.pre { opacity: 0; transform: translateY(28px); }
+
+@media (max-width: 860px) {
+  .how-grid { display: flex; flex-direction: column; }
+  .stage { order: -1; position: sticky; top: 56px; height: auto; padding-block: 8px 12px; background: var(--void); z-index: 2; }
+  .steps { padding-block: 6vh 30vh; gap: 60vh; }
+  .step { max-width: none; }
+  .turn-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .turn-text p { display: none; }
+  .clock { margin-top: 14px; }
+  .dialwrap { width: min(100%, 52vh); }
+  .lab { grid-template-columns: minmax(0, 1fr); }
+  .take { grid-template-columns: minmax(0, 1fr); }
+  .pair { gap: 14px; }
+  details.method dl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv, .rv.pre { opacity: 1; transform: none; transition: none; }
+  .cue i { animation: none; }
+  #how .map .full, #how .map .crop, #how .photo, .step, .links.drawn line { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="index.html">Penombra <span>Demo v0</span></a>
+    <a class="back" href="index.html">← Main page</a>
+  </div>
+</header>
+
+<main>
+  <!-- 1. the descent, scrubbed by scrolling -->
+  <section class="scene" id="descent" aria-label="Descent from 2,000 m to 500 m">
+    <div class="pin">
+      <div class="say">
+        <h1 data-show="0 .2">How does a lander know where it is?</h1>
+        <p data-show=".24 .52">Coming down to the Moon, it has to find its own way.</p>
+        <p data-show=".56 1.01">It has a camera. <em>And a map.</em></p>
+      </div>
+      <div class="frames" id="frames" aria-hidden="true">
+        <img src="assets/demo/desc-1.4-0.jpg" alt="">
+        <img src="assets/demo/desc-1.4-1.jpg" alt="">
+        <img src="assets/demo/desc-1.4-2.jpg" alt="">
+        <img src="assets/demo/desc-1.4-3.jpg" alt="">
+        <img src="assets/demo/desc-1.4-4.jpg" alt="">
+        <img src="assets/demo/desc-1.4-5.jpg" alt="">
+        <img src="assets/demo/desc-1.4-6.jpg" alt="">
+      </div>
+      <div class="alt"><span><span class="k">ALT</span><span id="altv" class="num">2,000</span> m</span><span class="sun"><span class="k">SUN</span>1.4° above the horizon</span></div>
+      <div class="cue label" id="cue"><span>Scroll</span><i></i></div>
+    </div>
+  </section>
+
+  <!-- 2. how map navigation works -->
+  <section class="scene" id="how" data-step="1">
+    <div class="wrap how-grid">
+      <div class="steps">
+        <article class="step on" data-step="1">
+          <span class="label">Step 1</span>
+          <h2>It carries a map of the landing site.</h2>
+          <p>An image of the area seen from above, made before launch from orbital photos. For every point on it, the lander knows the exact position on the Moon.</p>
+        </article>
+        <article class="step" data-step="2">
+          <span class="label">Step 2</span>
+          <h2>It takes a photo.</h2>
+          <p>Here it is <b>1,000 m</b> above the landing point. The camera sees about <b>830 m</b> of ground, the dashed square on the map.</p>
+        </article>
+        <article class="step" data-step="3">
+          <span class="label">Step 3</span>
+          <h2>It finds the same craters and rocks in both.</h2>
+          <p>Software picks out thousands of small details and pairs them up. Here <b>1,800</b> pairs are right. Each line joins a point in the photo to the same point on the map.</p>
+        </article>
+        <article class="step" data-step="4">
+          <span class="label">Step 4</span>
+          <h2>It works out where it is.</h2>
+          <p>From those pairs it computes its own position: <b>0.3 m</b> from the true one. Penombra knows the true position exactly, so it can grade every answer.</p>
+        </article>
+      </div>
+      <div class="stage">
+        <div class="pair" id="howPair">
+          <figure class="photo">
+            <div class="frame"><img src="assets/demo/desc-1.4-3.jpg" alt="Descent photo 1,000 m above the landing point, Sun 1.4° above the horizon"><span class="reticle" id="retP" style="left:50%;top:50%"><i></i></span></div>
+            <figcaption><span>Photo</span><span>landing day</span></figcaption>
+          </figure>
+          <figure class="map">
+            <div class="frame">
+              <img class="full" id="mapFull" src="assets/demo/map-full-1.4-0.jpg" alt="Onboard map of the landing site, 2.6 km across">
+              <img class="crop" src="assets/demo/map-1.4-0.jpg" alt="Onboard map, area around the landing point">
+              <span class="box" id="footBox"></span>
+              <span class="reticle" id="retM" style="left:50%;top:50%"><i></i></span>
+            </div>
+            <figcaption><span>Onboard map</span><span id="mapCap">2.6 km across</span></figcaption>
+          </figure>
+          <svg class="links" id="howLinks" aria-hidden="true"></svg>
+        </div>
+        <div class="readout" id="howRead"><strong>&nbsp;</strong><span>&nbsp;</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. the catch: the Sun turns -->
+  <section class="scene" id="turn" aria-label="The Sun turning around the horizon">
+    <div class="pin">
+      <div class="wrap turn-grid">
+        <div class="turn-text">
+          <span class="label">The catch</span>
+          <h2 style="margin-top:14px">The map was made on another day.</h2>
+          <p>At the south pole the Sun never climbs. It circles the horizon, about 12° a day, and every shadow turns with it. Scroll to move the Sun on the map.</p>
+          <dl class="clock">
+            <dt>Days later</dt><dt>Sun turned by</dt>
+            <dd id="dayv">0.0</dd><dd class="sunv" id="degv">0°</dd>
+          </dl>
+          <div class="verdict ok" id="verdict"><i></i><span>The map still works</span></div>
+        </div>
+        <div class="dialwrap" id="dial">
+          <div class="maps" id="turnMaps"></div>
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#2a2925" stroke-width=".35"></circle>
+            <path id="okArc" fill="none" stroke="#4fbf8f" stroke-width="1.2" stroke-linecap="round"></path>
+            <text id="okTxt" font-size="2.5" fill="#4fbf8f" font-family="IBM Plex Mono, monospace" text-anchor="middle">map works ±20°</text>
+            <line id="landTick" stroke="#ebe7df" stroke-width=".5"></line>
+            <text id="landTxt" font-size="2.5" fill="#b8b4ab" font-family="IBM Plex Mono, monospace" text-anchor="middle">Sun on landing day</text>
+            <text x="50" y="3.2" font-size="2.6" fill="#85817a" font-family="IBM Plex Mono, monospace" text-anchor="middle">N</text>
+            <line id="sunRay" stroke="#f2b44c" stroke-width=".35" stroke-dasharray="1 1.2" opacity=".7"></line>
+            <circle id="sunDot" r="2.4" fill="#f2b44c"></circle>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. the lab -->
+  <section class="sec" id="try">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="label">Try it</span>
+        <h2>Turn the Sun on the map yourself.</h2>
+        <p>The photo stays the same, taken on landing day. Pick how far the Sun had turned when the map was made, and watch how many details the lander can still recognise.</p>
+      </div>
+      <div class="lab">
+        <div class="pair" id="labPair">
+          <figure class="photo">
+            <div class="frame"><img id="labPhoto" src="assets/demo/desc-1.4-3.jpg" alt="Descent photo on landing day, 1,000 m above the landing point"></div>
+            <figcaption><span>Photo, landing day</span><span id="labPhotoCap">Sun 1.4°</span></figcaption>
+          </figure>
+          <figure class="map">
+            <div class="frame"><img id="labMap" src="assets/demo/map-1.4-0.jpg" alt="Onboard map lit with the Sun turned by the chosen angle"></div>
+            <figcaption><span>Onboard map</span><span id="labMapCap">Sun turned 0°</span></figcaption>
+          </figure>
+          <svg class="links" id="labLinks" aria-hidden="true"></svg>
+        </div>
+        <div class="controls">
+          <div class="ctl">
+            <span class="label">Sun turned on the map</span>
+            <div class="ticks" id="ticks" role="group" aria-label="Sun turned on the map"></div>
+            <input type="range" id="dazRange" min="0" max="6" step="1" value="0" aria-label="Sun turned on the map">
+          </div>
+          <div class="ctl">
+            <span class="label">Sun height on landing day</span>
+            <div class="seg" id="elSeg" role="group" aria-label="Sun height">
+              <button type="button" data-el="1.4" aria-pressed="true">1.4° · south pole</button>
+              <button type="button" data-el="30" aria-pressed="false">30° · for comparison</button>
+            </div>
+          </div>
+          <div class="ctl">
+            <span class="label">Details recognised correctly</span>
+            <div class="big num" id="okCount">1,800<small>of 1,828</small></div>
+            <div class="status ok" id="labStatus"><i></i><span>Position found · 0.3 m from the truth</span></div>
+          </div>
+          <div class="legend"><span><i style="background:#4fbf8f"></i>right pair</span><span><i style="background:#e5534b"></i>wrong pair</span></div>
+          <p class="note">Lines show a sample of the pairs, in proportion. Each pair is checked against Penombra's exact answer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. all results -->
+  <section class="sec" id="results">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="label">196 tries</span>
+        <h2>Same answer at every height of the Sun.</h2>
+        <p>Each square is one map and one Sun height, tried at 7 altitudes from 2,000 m down to 500 m. The number says how often the lander found its position, the line below its median error.</p>
+      </div>
+      <div class="grid-wrap rv"><div class="rgrid" id="rgrid"></div></div>
+      <div class="gridnote rv">
+        <span><span class="dots"><i class="ok" style="color:#ebe7df"></i></span>position found</span>
+        <span><span class="dots"><i class="wr"></i></span>wrong position (over 5 m off)</span>
+        <span><span class="dots"><i style="color:#85817a"></i></span>no position</span>
+        <span>Dots run from 2,000 m (left) to 500 m (right).</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. what it means -->
+  <section class="sec" id="means">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="label">What it means</span>
+        <h2>The low Sun is fine. The wrong day is not.</h2>
+      </div>
+      <div class="take">
+        <div class="rv"><strong data-count="0.5" data-dec="1" data-suf=" m">0.5 m</strong><span>Position error with a map lit like landing day, even with the Sun 1.4° above the horizon.</span></div>
+        <div class="rv"><strong data-count="1.5" data-dec="1" data-pre="±" data-suf=" days">±1.5 days</strong><span>How long a map stays usable at the pole: beyond about 20° of Sun movement, the lander gets lost.</span></div>
+        <div class="rv"><strong data-count="6" data-dec="0" data-suf=" m">6 m</strong><span>The dangerous case. At the edge, one answer was wrong while the system looked confident.</span></div>
+      </div>
+      <p class="rv" style="color:var(--ash);max-width:62ch;margin:clamp(40px,5vw,64px) 0 0">The fix is a map lit for landing day. Penombra renders it from the 3D terrain, for any date and Sun position, and tests the navigation against it before flight, with the exact answer for every pixel.</p>
+      <div class="cta rv">
+        <a class="btn" href="index.html#contact">Talk to us about your landing site</a>
+        <a class="btn ghost" href="index.html">Back to Penombra</a>
+      </div>
+
+      <details class="method rv">
+        <summary>How the test was done</summary>
+        <dl>
+          <dt>Site</dt><dd>Rim of Shackleton crater, the same terrain as the sample dataset: NASA LOLA elevation data with Penombra's small craters, boulders and roughness.</dd>
+          <dt>Descent</dt><dd>Vertical, camera pointing straight down, 7 altitudes from 2,000 m to 500 m above the landing point. Simulated 12-bit camera with noise.</dd>
+          <dt>Map</dt><dd>View from directly above, 2.6 km across at 1 m per pixel. Rendered with the Sun at the same height, turned by 0° to 180° around the horizon.</dd>
+          <dt>Navigation</dt><dd>SIFT features in photo and map, matched and turned into a position with PnP and RANSAC. Starting position known to ±150 m, altimeter accurate to 1%.</dd>
+          <dt>Grading</dt><dd>A position counts as found when it is less than 5 m from the truth and rests on at least 12 consistent pairs. Every pair is checked against the ground truth.</dd>
+          <dt>Limits</dt><dd>One site, one classic algorithm, maps rendered with the same model rather than real orbital photos, vertical descent only. Learned methods may tolerate more; Penombra is built to measure exactly that.</dd>
+        </dl>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap"><p>Penombra Demo v0, October 2026. Images and data © 2026 Rocco Cherubini, CC BY 4.0. Elevation data: NASA LOLA. Sun position: NASA NAIF SPICE.</p></div>
+</footer>
+
+<script id="demo-data" type="application/json">{"alts":[2000,1600,1260,1000,800,630,500],"frame":3,"frame_alt":1000,"els":[1.4,5.0,15.0,30.0],"daz":[0,10,20,30,60,90,180],"landing_sun_az":321.0665587352499,"crop":{"crop_m":1108.0,"photo_footprint_m":828.4271247461901,"photo_box":[0.12616104478962514,0.12616104478962617,0.7476779104207492]},"full":{"extent_m":2600.0,"crop_box":[0.28692307692307695,0.28692307692307695,0.42615384615384616],"photo_box":[0.34068709139496334,0.3406870913949638,0.3186258172100731]},"matches":{"1.4_0":{"lines":[[0.1229,0.4978,0.2053,0.4977,1],[0.4005,0.8514,0.4255,0.7613,1],[0.0054,0.319,0.1006,0.3533,1],[0.5936,0.0108,0.5718,0.1232,1],[0.3992,0.4615,0.4237,0.4707,1],[0.5856,0.2238,0.5645,0.2902,1],[0.4932,0.1734,0.495,0.2495,1],[0.4925,0.4558,0.4941,0.4671,1],[0.4913,0.8556,0.4932,0.7649,1],[0.49,0.8654,0.4923,0.7712,1],[0.49,0.398,0.4923,0.4228,1],[0.1294,0.5862,0.2134,0.5663,1],[0.1315,0.5905,0.2153,0.5699,1],[0.4816,0.2824,0.486,0.3344,1],[0.1343,0.4104,0.2134,0.4301,1],[0.4801,0.3675,0.4851,0.3994,1],[0.5558,0.7301,0.5411,0.671,1],[0.1361,0.4795,0.2162,0.4842,1],[0.5465,0.2104,0.5357,0.2793,1],[0.5452,0.7668,0.5338,0.6981,1],[0.3885,0.8485,0.4174,0.7586,1],[0.0268,0.1997,0.1151,0.2559,1],[0.5379,0.1079,0.5284,0.1981,1],[0.4724,0.303,0.4788,0.3497,1],[0.141,0.906,0.2261,0.8091,1],[0.5307,0.4943,0.523,0.4959,1],[0.0333,0.5493,0.1331,0.5384,1],[0.0356,0.5717,0.1349,0.5564,1],[0.3838,0.2828,0.4102,0.3326,1],[0.1446,0.3904,0.2216,0.4138,1],[0.1459,0.8226,0.2306,0.745,1],[0.5184,0.2009,0.514,0.2721,1],[0.0394,0.6822,0.1412,0.6421,1],[0.1479,0.6281,0.2297,0.5988,1],[0.5131,0.0415,0.5104,0.144,1],[0.1485,0.9461,0.2324,0.8407,1],[0.5073,0.5381,0.505,0.5284,1],[0.1508,0.5542,0.2297,0.542,1],[0.5042,0.1432,0.5032,0.2261,1],[0.4586,0.0539,0.468,0.153,1],[0.3001,0.8201,0.3506,0.7396,1],[0.3782,0.9934,0.4093,0.8678,1],[0.4572,0.181,0.4671,0.255,1],[0.4569,0.6879,0.468,0.6394,1],[0.3763,0.5751,0.4066,0.5564,1],[0.4527,0.4191,0.4644,0.4391,1],[0.2906,0.255,0.3362,0.3091,1],[0.2891,0.645,0.3407,0.6088,1],[0.4515,0.0309,0.4616,0.134,1],[0.3751,0.3411,0.4039,0.3777,1],[0.1576,0.5055,0.2342,0.5041,1],[0.4496,0.4387,0.4616,0.4535,1],[0.1579,0.8257,0.2405,0.7468,1],[0.4474,0.3163,0.4598,0.3597,1],[0.3732,0.5712,0.4048,0.5537,1],[0.2814,0.0798,0.3254,0.1647,1],[0.2814,0.0798,0.3254,0.1647,1],[0.3728,0.4056,0.403,0.4282,1],[0.3722,0.2169,0.4012,0.2802,1],[0.372,0.7141,0.4048,0.6593,1],[0.2788,0.3892,0.329,0.4147,1],[0.1637,0.1708,0.2306,0.2369,1],[0.2706,0.6688,0.3272,0.6268,1],[0.2689,0.9429,0.3263,0.8326,1],[0.0702,0.0708,0.1476,0.1476,1],[0.2671,0.8969,0.3254,0.7974,1],[0.2664,0.3447,0.3181,0.3795,1],[0.2631,0.8584,0.3218,0.7694,1],[0.1702,0.1935,0.2369,0.255,1],[0.171,0.6246,0.2477,0.5952,1],[0.0749,0.7971,0.1728,0.7288,1],[0.4328,0.4202,0.449,0.44,1],[0.2567,0.4281,0.3127,0.4445,1],[0.1729,0.543,0.2477,0.5329,1],[0.2543,0.5476,0.3127,0.5366,1],[0.1754,0.5333,0.2495,0.5257,1],[0.2515,0.8514,0.3127,0.764,1],[0.2488,0.7066,0.31,0.6557,1],[0.0833,0.8721,0.1792,0.7866,1],[0.3263,0.6969,0.3696,0.6467,1],[0.3598,0.5895,0.3949,0.5672,1],[0.2382,0.4026,0.2974,0.4246,1],[0.0912,0.9649,0.1837,0.8597,1],[0.33,0.764,0.3732,0.6963,1],[0.092,0.1889,0.171,0.2486,1],[0.0934,0.4206,0.1792,0.4373,1],[0.1836,0.4132,0.2541,0.4328,1],[0.1837,0.3484,0.2523,0.3813,1],[0.2323,0.1462,0.2866,0.218,1],[0.3317,0.3305,0.3696,0.3687,1],[0.3321,0.5189,0.3732,0.514,1],[0.4196,0.2067,0.4382,0.2739,1],[0.2284,0.4946,0.2911,0.4959,1],[0.2276,0.8193,0.2947,0.7405,1],[0.0986,0.9187,0.1909,0.8218,1],[0.4187,0.1637,0.4373,0.2396,1],[0.2262,0.2782,0.2857,0.3263,1],[0.1003,0.7506,0.1927,0.6927,1],[0.1887,0.6672,0.2622,0.6277,1],[0.2141,0.4579,0.2793,0.4671,1],[0.1068,0.0914,0.1801,0.1674,1],[0.3514,0.6522,0.3894,0.6142,1],[0.2122,0.7166,0.282,0.6638,1],[0.3411,0.8878,0.3813,0.7893,1],[0.2111,0.4202,0.2757,0.4382,1],[0.3414,0.7629,0.3822,0.6954,1],[0.2058,0.6243,0.2757,0.5943,1],[0.2055,0.079,0.2631,0.1611,1],[0.4089,0.509,0.431,0.5068,1],[0.3495,0.7402,0.3876,0.6782,1],[0.2018,0.172,0.2631,0.2387,1],[0.3456,0.3431,0.3804,0.3786,1],[0.6352,0.1774,0.6024,0.255,1],[0.1169,0.6215,0.2044,0.5934,1],[0.1172,0.9851,0.2062,0.8723,1],[0.6283,0.2844,0.597,0.3371,1],[0.6274,0.4159,0.5952,0.4373,1],[0.6223,0.3341,0.5916,0.375,1],[0.6209,0.1254,0.5925,0.2143,1],[0.6208,0.2818,0.5907,0.3353,1],[0.615,0.4229,0.5862,0.4418,1],[0.6148,0.2003,0.5871,0.273,1],[0.1207,0.8285,0.2107,0.7505,1],[0.2846,0.083,0.3281,0.1674,1],[0.0442,0.1807,0.1304,0.2414,1],[0.0468,0.872,0.1485,0.7884,1],[0.4565,0.0508,0.4662,0.1503,1],[0.5727,0.0156,0.5564,0.1259,1],[0.0637,0.3874,0.153,0.4102,1],[0.0697,0.3224,0.1566,0.3579,1],[0.1374,0.3937,0.2153,0.4165,1],[0.3456,0.1398,0.3786,0.218,1],[0.3456,0.1398,0.3786,0.218,1],[0.0816,0.2981,0.1656,0.338,1],[0.5325,0.3608,0.2703,1.1801,0],[0.098,0.8325,0.1918,0.755,1],[0.1046,0.9669,0.1945,0.8597,1],[0.2637,0.1127,0.3118,0.1918,1],[0.2613,0.6032,-0.0654,0.3921,0],[0.0596,0.0464,0.1367,0.1259,1]],"matches":1828,"correct":1800,"fix":"correct","error_m":0.26},"1.4_10":{"lines":[[0.4527,0.1767,0.4634,0.2514,1],[0.0054,0.319,0.1006,0.3542,1],[0.3995,0.3654,0.4237,0.3967,1],[0.5943,0.0681,0.5727,0.1683,1],[0.3992,0.3014,0.4228,0.347,1],[0.4972,0.2568,0.4977,0.3154,1],[0.5889,0.0346,0.5681,0.1421,1],[0.5888,0.1874,0.5672,0.2622,1],[0.0096,0.3258,0.1051,0.3597,1],[0.5856,0.2298,0.5645,0.2947,1],[0.4932,0.1734,0.495,0.2495,1],[0.5831,0.0256,0.5645,0.134,1],[0.4912,0.4146,0.4932,0.4355,1],[0.5788,0.5581,0.5582,0.5429,1],[0.5775,0.5259,0.5573,0.5194,1],[0.5758,0.6693,0.5564,0.6259,1],[0.485,0.2343,0.4887,0.2974,1],[0.5672,0.0875,0.551,0.1837,1],[0.1334,0.6767,0.2189,0.6349,1],[0.56,0.2014,0.5456,0.273,1],[0.4798,0.3278,0.4842,0.3687,1],[0.5496,0.1154,0.5375,0.2053,1],[0.1405,0.181,0.2107,0.2441,1],[0.473,0.2939,0.4797,0.3425,1],[0.532,0.3336,0.5239,0.3741,1],[0.4692,0.8767,0.477,0.7802,1],[0.5267,0.1793,0.5203,0.255,1],[0.5259,0.2312,0.5203,0.2947,1],[0.1444,0.9209,0.2288,0.8208,1],[0.5228,0.7706,0.5158,0.7008,1],[0.5195,0.22,0.5149,0.2866,1],[0.0394,0.6822,0.1412,0.6421,1],[0.4634,0.295,0.4716,0.3434,1],[0.5083,0.1573,0.5068,0.2369,1],[0.0452,0.5108,0.1412,0.5086,1],[0.0454,0.3527,0.1367,0.3822,1],[0.5041,0.1946,0.5032,0.2667,1],[0.3013,0.6091,0.3506,0.5817,1],[0.0479,0.8645,0.1494,0.7829,1],[0.2972,0.1957,0.3407,0.2613,1],[0.1539,0.1661,0.2225,0.2324,1],[0.1548,0.2323,0.2243,0.2856,1],[0.1555,0.0892,0.2216,0.1674,1],[0.3055,0.5631,0.3533,0.5474,1],[0.2862,0.958,0.3398,0.8434,1],[0.1579,0.8257,0.2405,0.7468,1],[0.2858,0.1877,0.3308,0.2541,1],[0.3076,0.7965,0.356,0.7216,1],[0.3087,0.2776,0.3506,0.3272,1],[0.282,0.7766,0.3371,0.7062,1],[0.2814,0.0798,0.3254,0.1647,1],[0.3098,0.1274,0.3497,0.2053,1],[0.1612,0.2039,0.2297,0.2631,1],[0.2794,0.8592,0.3353,0.7685,1],[0.2793,0.4181,0.3299,0.4373,1],[0.2762,0.8358,0.3326,0.7514,1],[0.3127,0.1209,0.3506,0.2008,1],[0.0649,0.2959,0.1512,0.3362,1],[0.4426,0.3611,0.4562,0.394,1],[0.1638,0.6691,0.2432,0.6295,1],[0.4402,0.6951,0.4553,0.6449,1],[0.3693,0.6245,0.4021,0.5934,1],[0.1671,0.8436,0.2468,0.7604,1],[0.4388,0.3856,0.4535,0.4129,1],[0.1679,0.4622,0.2414,0.4707,1],[0.437,0.6909,0.4535,0.6412,1],[0.3168,0.8532,0.3633,0.7631,1],[0.2647,0.6723,0.3227,0.6295,1],[0.3173,0.3914,0.3597,0.4165,1],[0.1698,0.727,0.2495,0.6719,1],[0.2627,0.2598,0.3136,0.3118,1],[0.0733,0.6137,0.1674,0.5889,1],[0.4351,0.0231,0.449,0.1268,1],[0.3183,0.3004,0.3588,0.3443,1],[0.3187,0.0819,0.356,0.1683,1],[0.1722,0.168,0.2378,0.2351,1],[0.3647,0.2517,0.3949,0.3073,1],[0.4324,0.5186,0.449,0.514,1],[0.0766,0.7427,0.1737,0.6873,1],[0.4324,0.2683,0.4481,0.3218,1],[0.0794,0.2947,0.3308,0.4544,0],[0.2517,0.3221,0.3064,0.3615,1],[0.1765,0.2638,0.2441,0.3136,1],[0.1769,0.3871,0.2477,0.412,1],[0.0824,0.7075,0.1773,0.6602,1],[0.2488,0.6402,0.3091,0.606,1],[0.2476,0.6804,0.3091,0.6367,1],[0.2438,0.8132,0.3073,0.7351,1],[0.0864,0.9597,0.1801,0.856,1],[0.2428,0.1374,0.2956,0.2107,1],[0.2421,0.9264,0.3055,0.8218,1],[0.0878,0.1833,0.1674,0.2441,1],[0.1805,0.6465,0.2559,0.6115,1],[0.0888,0.1567,0.1665,0.2225,1],[0.2403,0.0543,0.292,0.1412,1],[0.1833,0.8303,0.2595,0.7505,1],[0.42,0.3334,0.4391,0.3723,1],[0.0977,0.2668,0.1755,0.3118,1],[0.4192,0.5432,0.4391,0.532,1],[0.1002,0.2504,0.1773,0.2983,1],[0.3351,0.4083,0.3732,0.4301,1],[0.354,0.2518,0.3867,0.3073,1],[0.4172,0.6257,0.4382,0.5934,1],[0.1007,0.4331,0.1855,0.4472,1],[0.189,0.699,0.2631,0.6512,1],[0.1897,0.7076,0.2649,0.6575,1],[0.3382,0.3413,0.375,0.3777,1],[0.414,0.2454,0.4337,0.3037,1],[0.3406,0.7441,0.3813,0.6819,1],[0.4129,0.4113,0.4337,0.4328,1],[0.2089,0.5544,0.2775,0.5411,1],[0.3429,0.4268,0.3804,0.4436,1],[0.3443,0.7382,0.384,0.6773,1],[0.6532,0.1756,0.616,0.2541,1],[0.6429,0.1579,0.6088,0.2396,1],[0.4049,0.2889,0.4264,0.3371,1],[0.6351,0.4799,0.6015,0.4842,1],[0.629,0.1723,0.5979,0.2514,1],[0.119,0.8362,0.2089,0.7568,1],[0.4005,0.7078,0.4264,0.6539,1],[0.2767,0.1198,0.3227,0.1981,1],[0.3113,0.6943,-0.0302,0.94,0],[0.1224,0.9269,0.2107,0.8272,1],[0.0265,0.7197,0.1313,0.671,1],[0.0279,0.7014,0.1313,0.6575,1],[0.4623,0.1726,-0.0248,0.4616,0],[0.0714,0.8127,0.1692,0.7405,1],[0.1374,0.3937,0.2153,0.4165,1],[0.0758,0.9312,0.1719,0.8335,1],[0.5133,0.0497,0.5104,0.1503,1],[0.5153,0.0442,0.5113,0.1467,1],[0.5155,0.0276,0.5122,0.1331,1],[0.0958,0.1909,0.1737,0.2505,1],[0.1074,0.9455,0.1981,0.8425,1],[0.098,0.8325,0.1918,0.755,1],[0.3291,0.2575,0.3669,0.3118,1],[0.2663,0.061,0.3127,0.1485,1],[0.1691,0.2302,0.2369,0.2847,1],[0.2488,0.9886,0.088,1.2162,0],[0.1518,0.1373,0.2198,0.208,1]],"matches":1348,"correct":1310,"fix":"correct","error_m":0.49},"1.4_20":{"lines":[[0.6028,0.4789,0.5763,0.4842,1],[0.5004,0.8398,0.3398,1.0528,0],[0.5915,0.5464,0.5681,0.5347,1],[0.5903,0.2718,0.569,0.3272,1],[0.1275,0.0847,0.1981,0.1611,1],[0.4952,0.264,0.4959,0.3199,1],[0.1285,0.2674,0.1927,0.3181,0],[0.5815,0.5353,0.56,0.5266,1],[0.5815,0.5353,0.56,0.5266,1],[0.5784,0.0705,0.56,0.1701,1],[0.5752,0.0679,0.5573,0.1674,1],[0.5724,0.2959,0.5546,0.3452,1],[0.5722,0.5308,0.5537,0.523,1],[0.5717,0.0653,0.5555,0.1647,1],[0.5714,0.1836,0.5537,0.2595,1],[0.4868,0.3839,0.4896,0.412,1],[0.3929,0.1241,0.4165,0.2071,1],[0.3915,0.0728,0.4147,0.1647,1],[0.4818,0.6087,0.486,0.5808,1],[0.4816,0.2824,0.486,0.3344,1],[0.4798,0.3278,0.4842,0.3687,1],[0.3895,0.3895,0.4156,0.4156,1],[0.5518,0.7668,0.5384,0.6981,1],[0.0253,0.3976,0.1205,0.4183,1],[0.0258,0.6985,0.1304,0.6548,1],[0.0263,0.5376,0.125,0.5302,1],[0.0263,0.5376,0.125,0.5302,1],[0.5428,0.464,0.5311,0.4734,1],[0.4745,0.4102,0.4806,0.4319,1],[0.4744,0.2879,0.4806,0.338,1],[0.4743,0.3608,-0.0925,0.4499,0],[0.5405,0.4357,0.5302,0.4517,1],[0.4726,0.6347,0.4797,0.5997,1],[0.4725,0.1221,0.4788,0.208,1],[0.1424,0.1895,0.2134,0.2505,1],[0.0333,0.5493,0.1322,0.5384,1],[0.5273,0.3026,0.5203,0.3506,1],[0.4667,0.3142,0.4752,0.3579,1],[0.5212,0.4296,0.5158,0.4472,1],[0.4634,0.3059,0.4716,0.3524,1],[0.4617,0.06,0.4707,0.1575,1],[0.0436,0.4553,0.1376,0.4643,1],[0.5083,0.1573,0.5068,0.2369,1],[0.0479,0.8645,0.1494,0.7829,1],[0.1516,0.2992,0.2243,0.3407,1],[0.2957,0.7532,0.347,0.6891,1],[0.3764,0.8433,0.4084,0.755,1],[0.3764,0.3598,0.4039,0.3931,1],[0.4555,0.6101,0.1927,0.292,0],[0.3044,0.569,0.3524,0.5519,1],[0.4517,0.2343,0.4625,0.2965,1],[0.1577,0.2201,-0.088,1.19,0],[0.4494,0.1829,0.4607,0.2559,1],[0.3716,0.2472,0.3046,0.1782,0],[0.3121,0.6344,0.3588,0.6006,1],[0.2762,0.5091,0.4337,0.6187,0],[0.1644,0.8121,0.245,0.7369,1],[0.3696,0.4258,0.4003,0.4436,1],[0.3142,0.6396,0.3606,0.6051,1],[0.2698,0.3114,0.3199,0.3533,1],[0.1657,0.8255,0.2468,0.7468,1],[0.3681,0.2441,0.3976,0.3019,1],[0.1691,0.5846,0.245,0.5654,1],[0.3664,0.1235,0.3958,0.2053,1],[0.3178,0.7586,0.3642,0.6927,1],[0.32,0.575,0.3642,0.5564,1],[0.2544,0.7527,0.3154,0.69,1],[0.4308,0.5284,0.4472,0.5212,1],[0.3226,0.5773,0.366,0.5582,1],[0.2483,0.2926,0.3037,0.338,1],[0.1774,0.1678,-0.032,0.2775,0],[0.247,0.2969,0.3028,0.3416,1],[0.0851,0.4742,0.1737,0.4806,1],[0.3612,0.406,0.394,0.4282,1],[0.2413,0.4386,0.3001,0.4526,1],[0.0883,0.4868,0.1773,0.4896,1],[0.0884,0.7131,0.005,0.2459,0],[0.2382,0.4026,0.2974,0.4246,1],[0.3305,0.3233,0.3687,0.3633,1],[0.0934,0.4206,0.1792,0.4373,1],[0.2326,0.5172,0.2956,0.5131,1],[0.23,0.584,0.2947,0.5636,1],[0.2284,0.4946,0.2911,0.4959,1],[0.3557,0.4742,0.3903,0.4797,1],[0.2263,0.27,0.2847,0.3199,1],[0.418,0.1691,0.4364,0.2441,1],[0.222,0.6346,0.2884,0.6024,1],[0.189,0.699,0.2631,0.6512,1],[0.2193,0.3066,0.2793,0.3488,1],[0.3381,0.3664,0.375,0.3976,1],[0.1911,0.3898,0.2604,0.4138,1],[0.2132,0.3009,0.2757,0.3434,1],[0.213,0.6347,0.2811,0.6024,1],[0.1923,0.7652,0.2667,0.7008,1],[0.2108,0.4143,0.2748,0.4337,1],[0.4117,0.3435,0.4319,0.3804,1],[0.3427,0.2167,0.3777,0.2793,1],[0.1937,0.7263,0.2685,0.671,1],[0.1942,0.2554,0.2586,0.3073,1],[0.1127,0.4447,0.1954,0.4571,1],[0.348,0.3384,0.3831,0.375,1],[0.6539,0.2638,0.6873,0.1322,0],[0.6183,0.1221,0.5907,0.2107,1],[0.6175,0.4258,0.588,0.4445,1],[0.1207,0.8285,0.2107,0.7505,1],[0.6081,0.3161,0.5817,0.3615,1],[0.6398,0.3031,0.6051,0.3515,1],[0.1859,0.4075,0.255,0.4282,1],[0.2767,0.1198,0.3227,0.1981,1],[0.3101,0.6627,0.3579,0.6223,1],[0.3089,0.2825,0.3515,0.3308,1],[0.2832,0.556,0.3615,0.2983,0],[0.2192,0.2957,0.2802,0.3398,1],[0.2192,0.2957,0.2802,0.3398,1],[0.0329,0.2313,0.1214,0.2829,1],[0.4593,0.2213,0.4689,0.2866,1],[0.4575,0.4155,-0.0853,0.069,0],[0.4575,0.4155,-0.0853,0.069,0],[0.052,0.352,0.1421,0.3822,1],[0.3918,0.2134,0.4165,0.2784,1],[0.2048,0.5297,-0.0501,-0.0501,0],[0.0642,0.173,0.1467,0.2351,1],[0.5602,0.1102,0.5456,0.2008,1],[0.5543,0.676,0.1792,0.7153,0],[0.1965,0.3968,0.264,0.4192,1],[0.3461,0.0208,0.3786,0.1187,1],[0.0769,0.515,0.1683,0.5113,1],[0.5419,0.49,0.532,0.4923,1],[0.0791,0.6352,0.1737,0.6051,1],[0.1407,0.5557,0.2216,0.5429,1],[0.1021,0.6859,0.1936,0.6431,1],[0.1634,0.6945,0.2432,0.6485,1],[0.3569,0.321,0.3903,0.3615,1],[0.3282,0.361,0.3678,0.3931,1],[0.3174,0.2012,0.3569,0.2667,1],[0.1774,0.6391,0.2523,0.6069,1],[0.2528,0.2028,0.3046,0.2658,1],[0.6545,0.1426,0.6178,0.2279,1],[0.4463,0.6422,0.4616,-0.0393,0],[0.1616,0.0286,0.3254,1.1196,0]],"matches":292,"correct":256,"fix":"correct","error_m":0.77},"1.4_30":{"lines":[[0.5761,0.7046,0.0257,1.1033,0],[0.3915,0.0728,0.4147,0.1647,1],[0.5595,0.5466,-0.0248,0.4616,0],[0.5527,0.5573,0.5537,0.523,0],[0.4694,0.6808,0.1692,1.1485,0],[0.5164,0.7982,0.2144,1.088,0],[0.1477,0.5154,0.0835,-0.0474,0],[0.1479,0.6281,0.5754,0.0681,0],[0.1516,0.2992,0.2243,0.3407,1],[0.2959,0.3739,0.3416,0.403,1],[0.377,0.6449,0.2559,0.273,0],[0.7444,0.02,0.4192,0.6701,0],[0.158,0.8159,0.2396,0.7396,1],[0.159,0.8212,0.2414,0.7441,1],[0.3106,0.8004,0.3813,-0.0501,0],[0.1649,0.5351,0.2414,0.5266,1],[0.1653,0.6618,0.3272,0.1674,0],[0.3198,0.6094,0.5528,0.5077,0],[0.1825,0.2909,0.1828,0.5492,0],[0.2337,0.979,0.4653,0.1223,0],[0.2263,0.27,0.2847,0.3199,1],[0.2229,0.1991,0.153,1.0871,0],[0.189,0.5292,0.5248,0.1945,0],[0.19,0.5165,0.2613,0.5122,1],[0.2142,0.433,0.2893,0.2207,0],[0.1919,0.2341,0.0672,0.6358,0],[0.4098,0.2321,0.1512,0.366,0],[0.1149,0.9798,-0.0934,0.8118,0],[0.6167,0.0975,0.3199,0.2811,0],[0.6074,0.4036,0.1801,0.875,0],[0.333,0.1024,0.3579,0.6313,0],[0.6235,0.2868,0.4995,0.4337,0],[0.4887,0.3181,0.2414,0.1692,0],[0.4856,0.1064,0.5907,0.4246,0],[0.5871,0.205,0.218,0.6286,0],[0.0422,0.8284,0.4923,0.3615,0],[0.4618,0.5105,-0.0609,0.0781,0],[0.5782,0.5546,0.5582,0.5411,1],[0.1291,0.2069,0.5329,0.208,0],[0.3952,0.5197,0.2107,0.0564,0],[0.2077,0.4638,0.273,0.4725,1],[0.0691,0.2587,0.4391,0.5203,0],[0.1965,0.3968,0.264,0.4192,1],[0.1509,0.7429,-0.0356,0.0284,0],[0.5412,0.3332,0.0375,0.5871,0],[0.5307,0.6931,-0.0203,1.0573,0],[0.5215,0.2385,0.0384,0.3118,0],[0.3291,0.2575,0.3669,0.3118,1],[0.1803,0.0416,-0.0266,0.5988,0],[0.2476,0.5504,0.3082,0.5384,1],[0.1774,0.6391,0.2523,0.6069,1],[0.2478,0.4376,0.3055,0.4517,1],[0.1416,0.2655,0.1187,-0.0681,0],[0.0372,0.7638,0.2622,-0.005,0],[0.4684,0.4571,0.4761,0.468,1],[0.3093,0.1987,0.3506,0.264,1],[0.2453,0.8008,-0.0375,0.4616,0],[0.4365,0.0191,0.3714,0.2929,0]],"matches":58,"correct":17,"fix":"correct","error_m":2.97},"1.4_60":{"lines":[[0.6038,0.3471,0.6512,0.2911,0],[0.5903,0.2718,1.0889,0.1512,0],[0.128,0.4745,1.0203,0.8615,0],[0.5819,0.6731,0.0862,0.4643,0],[0.5724,0.2959,0.1629,0.3389,0],[0.5713,0.4106,0.7757,0.4616,0],[0.4823,0.8444,0.1349,0.4589,0],[0.5352,0.5402,1.0736,0.2044,0],[0.5267,0.8432,0.2324,0.2125,0],[0.5164,0.7982,0.2559,0.523,0],[0.4572,0.181,0.4201,1.1205,0],[0.0578,0.8493,1.0483,0.0375,0],[0.4426,0.3611,1.023,0.5266,0],[0.3701,0.4967,0.9815,1.0817,0],[0.0663,0.3386,0.6999,0.3579,0],[0.0679,0.4694,0.8452,0.6764,0],[0.2672,0.624,0.6394,0.6376,0],[0.3197,0.3975,1.0429,0.3524,0],[0.3198,0.6094,0.245,0.5059,0],[0.0824,0.7075,0.7486,0.3272,0],[0.2433,0.174,0.6503,0.7171,0],[0.3271,0.9284,0.2008,0.1683,0],[0.3326,0.6248,1.0275,0.0356,0],[0.3333,0.6056,0.9725,1.134,0],[0.4136,0.8429,0.6232,1.0862,0],[0.2151,0.6259,0.7234,0.7225,0],[0.2147,0.6177,0.8795,1.0059,0],[0.1064,0.63,0.7107,0.9328,0],[0.1925,0.7118,-0.0194,-0.0537,0],[0.1929,0.1337,0.847,0.977,0],[0.6402,0.3549,0.2008,0.1683,0],[0.4911,0.0795,0.9995,1.1891,0],[0.1203,0.2777,0.9508,-0.0483,0],[0.5784,0.7639,0.7929,0.4499,0],[0.4562,0.3348,0.5194,0.2125,0],[0.4468,0.1999,0.4869,0.5772,0],[0.563,0.5492,0.3949,0.4914,0],[0.4432,0.9793,-0.153,0.069,0],[0.2979,0.5497,0.9409,1.1458,0],[0.2304,0.2491,0.7559,0.9788,0],[0.2969,0.4393,0.6665,1.153,0],[0.5965,0.6111,0.7983,0.903,0],[0.1467,0.4066,0.6322,0.8055,0],[0.6381,0.425,-0.19,0.1042,0],[0.5589,0.272,0.9887,0.3867,0],[0.2525,0.7373,1.0158,0.0754,0]],"matches":46,"correct":0,"fix":"none","error_m":null},"1.4_90":{"lines":[[0.5856,0.2298,0.7044,1.1801,0],[0.5679,0.7688,0.6412,0.1367,0],[0.4836,0.3721,0.8082,0.4851,0],[0.5587,0.463,0.5338,0.7252,0],[0.5391,0.5709,0.7369,0.014,0],[0.4705,0.9605,0.44,0.7766,0],[0.3858,0.5332,0.4111,0.5672,0],[0.5183,0.4566,0.7658,1.0077,0],[0.4634,0.295,0.8515,0.3597,0],[0.5139,0.3351,0.8272,0.3461,0],[0.1479,0.6281,1.032,0.8335,0],[0.4486,0.885,0.5618,0.6512,0],[0.3106,0.8004,1.0086,0.4039,0],[0.3126,0.6981,0.7902,0.9364,0],[0.0658,0.7449,0.6476,0.2143,0],[0.3701,0.4967,0.5347,0.542,0],[0.1649,0.4114,0.9869,0.7505,0],[0.2517,0.3221,0.9607,0.792,0],[0.1771,0.1863,0.7703,-0.0293,0],[0.3231,0.6474,0.7694,1.0167,0],[0.2402,0.0476,0.9544,0.2396,0],[0.23,0.9757,0.7017,-0.0239,0],[0.2151,0.6259,0.6828,0.8317,0],[0.4094,0.8753,0.5194,0.5672,0],[0.3456,0.3431,1.0411,0.8073,0],[0.6271,0.4714,0.6945,0.8903,0],[0.119,0.8362,0.625,0.838,0],[0.6268,0.1448,0.7965,0.2252,0],[0.3113,0.6943,0.7929,0.9346,0],[0.3102,0.8811,0.8326,0.8669,0],[0.4715,0.3577,0.8064,0.532,0],[0.589,0.7606,0.4201,1.1196,0],[0.2882,0.4092,0.6909,0.3732,0],[0.5543,0.676,0.6196,1.1945,0],[0.1379,0.5139,1.0654,0.9923,0],[0.5449,0.2618,0.6286,0.0167,0],[0.5106,0.382,0.801,0.931,0],[0.5231,0.554,0.6494,0.9373,0],[0.3187,0.1012,0.6891,-0.0023,0],[0.5132,0.0872,0.6737,0.486,0],[0.4208,0.8491,0.5727,0.4463,0],[0.3306,0.3475,1.051,0.1268,0],[0.5553,0.1142,0.6178,0.3524,0],[0.2547,0.0972,1.0781,0.8154,0]],"matches":44,"correct":0,"fix":"none","error_m":null},"1.4_180":{"lines":[[0.5887,0.4475,0.6593,0.2866,0],[0.4884,0.0823,0.4941,1.0429,0],[0.3913,0.1542,0.9364,0.0257,0],[0.5424,0.555,0.6304,0.4535,0],[0.4738,0.5827,0.8542,0.5347,0],[0.4642,0.9593,0.4192,1.0654,0],[0.3783,0.1694,1.0212,0.7739,0],[0.0575,0.569,1.0032,0.6151,0],[0.3086,0.7267,0.9328,1.1286,0],[0.2812,0.7611,0.9535,0.708,0],[0.3716,0.2472,0.8001,1.1963,0],[0.3129,0.5239,0.903,0.2505,0],[0.0663,0.3386,0.9644,0.7893,0],[0.3147,0.2967,0.7486,-0.0203,0],[0.1706,0.705,0.8055,1.1855,0],[0.3185,0.0751,1.0239,0.5311,0],[0.3652,0.4995,0.4418,0.8479,0],[0.3261,0.2164,0.819,0.2829,0],[0.0883,0.4868,0.6349,0.1494,0],[0.3306,0.9363,0.4761,1.051,0],[0.338,0.3239,1.0745,0.4201,0],[0.3392,0.5494,0.9824,0.6864,0],[0.7153,0.1138,0.4662,0.9905,0],[0.6407,0.3597,0.4418,0.8479,0],[0.1229,0.8674,0.8263,0.2405,0],[0.4972,0.3319,0.6954,0.0402,0],[0.2947,0.2593,0.4896,0.9454,0],[0.5667,0.4888,0.6349,0.2568,0],[0.3889,0.5259,0.5817,0.5889,0],[0.5474,0.3516,0.7559,0.9436,0],[0.138,0.7999,0.7026,0.3633,0],[0.4302,0.4702,0.6909,0.0429,0],[0.512,0.2084,0.6286,0.7396,0],[0.5289,0.5872,0.6792,0.5988,0],[0.1439,0.3461,0.9725,1.144,0],[0.2559,0.8016,0.7947,0.2829,0],[0.5092,0.288,0.6259,0.4255,0],[0.5702,0.5073,0.8461,0.9806,0],[0.4272,0.03,0.5302,0.8876,0],[0.5754,0.441,0.7189,0.8633,0],[0.2197,0.9319,0.5239,0.8407,0],[0.0045,0.5668,0.7369,0.9364,0],[0.6381,0.425,0.6241,0.2098,0]],"matches":43,"correct":0,"fix":"none","error_m":null},"30_0":{"lines":[[0.0178,0.4389,0.1151,0.4508,1],[0.0252,0.3976,0.1205,0.4183,1],[0.0322,0.2057,0.1205,0.2613,1],[0.04,0.5653,0.1394,0.551,1],[0.7749,0.4991,0.7144,0.4995,1],[0.7737,0.1398,0.7107,0.2225,1],[0.7722,0.675,0.7134,0.6367,1],[0.7714,0.3082,0.7107,0.3506,1],[0.7675,0.1104,0.7062,0.1999,1],[0.127,0.5827,0.2116,0.5636,1],[0.1376,0.6786,0.2225,0.6367,1],[0.1427,0.5093,0.2225,0.5068,1],[0.1503,0.3481,0.2252,0.3804,1],[0.1551,0.1524,0.2225,0.2207,1],[0.1619,0.5178,0.2378,0.514,1],[0.172,0.1682,0.2378,0.2351,1],[0.7532,0.2518,0.6954,0.3082,1],[0.204,0.7099,0.2757,0.6593,1],[0.2077,0.8616,0.2784,0.7739,1],[0.2118,0.8425,0.282,0.7586,1],[0.2121,0.8403,0.282,0.7568,1],[0.2177,0.4621,0.282,0.4707,1],[0.751,0.5394,0.6945,0.5302,1],[0.7508,0.4918,0.6927,0.4932,1],[0.2298,0.1655,0.2857,0.2342,1],[0.2328,0.1456,0.2866,0.218,1],[0.241,0.8877,0.3046,0.792,1],[0.2472,0.1447,0.2992,0.2171,1],[0.2499,0.0638,0.2992,0.1494,1],[0.2506,0.9678,0.3109,0.8533,1],[0.2684,0.7137,0.3254,0.6611,1],[0.7411,0.8324,0.6864,0.7577,1],[0.285,0.7812,0.3389,0.7107,1],[0.7387,0.767,0.6837,0.7053,1],[0.3013,0.512,0.3488,0.5095,1],[0.3021,0.2181,0.3452,0.2793,1],[0.7311,0.6664,0.6782,0.6286,1],[0.3348,0.6469,0.3759,0.6106,1],[0.3406,0.6924,0.3804,0.644,1],[0.3467,0.6401,0.3849,0.6051,1],[0.7264,0.7521,0.6737,0.6936,1],[0.7256,0.6727,0.6737,0.6331,1],[0.3592,0.7556,0.3949,0.69,1],[0.3742,0.714,0.4057,0.6593,1],[0.3749,0.341,0.4039,0.3777,1],[0.7193,0.6678,0.6683,0.6286,1],[0.3931,0.3612,0.4183,0.394,1],[0.4001,0.707,0.4255,0.6539,1],[0.419,0.6366,0.44,0.6015,1],[0.4351,0.4233,0.4508,0.4418,1],[0.7097,0.5392,0.6602,0.5302,1],[0.7086,0.3873,0.6584,0.4138,1],[0.4633,0.306,0.4716,0.3524,1],[0.4674,0.6441,0.4761,0.6069,1],[0.4763,0.6361,0.4824,0.6015,1],[0.6971,0.6214,0.6503,0.5925,1],[0.6956,0.1932,0.6494,0.2658,1],[0.4994,0.2877,0.4995,0.338,1],[0.5013,0.9393,0.5014,0.8272,1],[0.6936,0.557,0.6467,0.5438,1],[0.6873,0.1489,0.6431,0.2324,1],[0.5343,0.9474,0.5257,0.8326,1],[0.6813,0.7582,0.6376,0.6954,1],[0.6805,0.9057,0.6376,0.8091,1],[0.6795,0.3936,0.6358,0.4192,1],[0.5607,0.6542,0.5447,0.6142,1],[0.5699,0.9641,0.5519,0.8452,1],[0.5795,0.7379,0.5591,0.6764,1],[0.6753,0.6145,0.6322,0.5862,1],[0.5826,0.742,0.5609,0.6801,1],[0.5826,0.6735,0.5609,0.6286,1],[0.5936,0.6994,0.569,0.6485,1],[0.5949,0.0654,0.5727,0.1665,1],[0.6704,0.9032,0.6286,0.8082,0],[0.5961,0.981,0.5718,0.8597,1],[0.5983,0.6729,0.5727,0.6286,1],[0.6042,0.9912,0.5781,0.8687,1],[0.6087,0.6594,0.5808,0.6187,1],[0.6109,0.7183,0.5826,0.6629,1],[0.6133,0.1046,0.5862,0.1981,1],[0.6142,0.5882,0.5853,0.5654,1],[0.618,0.4176,0.5889,0.4382,1],[0.6292,0.8485,0.5961,0.7604,1],[0.6329,0.4755,0.5997,0.4815,1],[0.6383,0.6997,0.6033,0.6494,1],[0.6474,0.1157,0.6124,0.2071,1],[0.6531,0.7704,0.6151,0.7035,1],[0.785,0.7788,0.7243,0.7189,1],[0.7869,0.1361,0.7216,0.2189,1],[0.7897,0.8457,0.7288,0.773,1],[0.7911,0.6519,0.7297,0.6196,1],[0.7914,0.6888,0.7288,0.6494,1],[0.7947,0.1916,0.7297,0.2577,0],[0.7969,0.5708,0.7342,0.5555,1],[0.817,0.8897,0.7559,0.8127,1],[0.8255,0.479,0.7595,0.4833,1],[0.8281,0.1085,0.7586,0.1918,1],[0.8297,0.4987,0.7631,0.4986,1],[0.8315,0.255,0.7622,0.3055,1],[0.8327,0.0875,0.7622,0.1746,1],[0.8421,0.325,0.7721,0.3606,1],[0.8429,0.3277,0.7721,0.3633,1],[0.8435,0.338,0.7739,0.3705,1],[0.8467,0.1227,0.7748,0.2008,1],[0.8477,0.1315,0.7766,0.2071,1],[0.8526,0.3515,0.7829,0.3804,1],[0.8632,0.3403,0.7929,0.3714,1],[0.8697,0.1158,0.7956,0.1927,1],[0.8711,0.5199,0.8028,0.5167,1],[0.8741,0.4341,0.8037,0.4463,1],[0.8831,0.8392,0.8199,0.7838,1],[0.8843,0.9836,0.8199,0.903,1],[0.8859,0.6956,0.8181,0.6611,1],[0.8881,0.8514,0.847,0.9797,0],[0.8944,0.868,0.8326,0.81,1],[0.8998,0.4879,0.8317,0.4896,1],[0.9007,0.7493,0.8353,0.7089,1],[0.9017,0.2913,0.8254,0.3308,1],[0.9086,0.4025,0.8353,0.4201,1],[0.9135,0.3921,0.8398,0.4111,1],[0.9145,0.848,0.8524,0.7965,1],[0.9197,0.749,0.8551,0.7116,1],[0.9206,0.1043,0.8425,0.1773,1],[0.9224,0.9174,0.8606,0.8551,1],[0.9249,0.3757,0.8533,0.3958,0],[0.9304,0.6672,0.8633,0.6412,1],[0.9327,0.3001,0.8551,0.3362,1],[0.9467,0.3649,0.8696,0.3876,1],[0.9473,0.7742,0.8867,0.7378,1],[0.9506,0.1185,0.8732,0.1837,1],[0.9527,0.8097,0.894,0.7694,1],[0.9533,0.4012,0.8777,0.4174,1],[0.9557,0.1777,0.8786,0.2324,1],[0.9642,0.5573,0.894,0.5483,1],[0.9678,0.2402,0.8912,0.2829,1],[0.9728,0.0879,0.8958,0.1548,1],[0.9753,0.6359,0.9084,0.6169,1],[0.9789,0.574,0.9102,0.5636,1],[0.98,0.549,0.9102,0.542,1],[0.9873,0.2896,0.9111,0.3227,1]],"matches":1718,"correct":1667,"fix":"correct","error_m":0.35},"30_10":{"lines":[[0.0479,0.2512,0.1349,0.2992,1],[0.7751,0.2632,0.7153,0.3154,1],[0.7745,0.0294,0.7116,0.1367,1],[0.7725,0.3835,0.7125,0.4093,1],[0.7725,0.3835,0.7125,0.4093,1],[0.0934,0.4205,0.1792,0.4373,1],[0.7712,0.0487,0.7089,0.1521,1],[0.7683,0.0158,0.7062,0.1277,1],[0.1147,0.98,0.2044,0.8687,1],[0.1278,0.2044,0.2008,0.2622,1],[0.1294,0.5862,0.2125,0.5663,1],[0.7639,0.9799,0.7089,0.8795,1],[0.7616,0.1642,0.7008,0.2414,1],[0.761,0.977,0.7062,0.8768,1],[0.7604,0.2085,0.7008,0.2757,1],[0.1612,0.2039,0.2297,0.2631,1],[0.1717,0.2927,0.2414,0.3362,1],[0.1771,0.1859,0.2423,0.2495,1],[0.1812,0.4595,0.2523,0.4689,1],[0.1951,0.7135,0.2676,0.662,1],[0.1959,0.6952,0.2694,0.6485,1],[0.2048,0.6473,0.2748,0.6124,1],[0.213,0.3009,0.2757,0.3434,1],[0.752,0.2055,0.6936,0.273,1],[0.7514,0.1824,0.6936,0.255,1],[0.7512,0.7808,0.6936,0.718,1],[0.7485,0.4745,0.6918,0.4806,1],[0.7448,0.0202,0.6873,0.1322,1],[0.281,0.761,0.3362,0.6954,1],[0.7383,0.4339,0.6828,0.449,1],[0.2969,0.2632,0.3416,0.3154,1],[0.3085,0.0934,0.3479,0.1764,1],[0.7342,0.4829,0.6792,0.4869,1],[0.7327,0.3977,0.6782,0.4219,1],[0.7296,0.3923,0.6755,0.4174,1],[0.3393,0.6892,0.3795,0.6412,1],[0.7287,0.4758,0.6746,0.4815,1],[0.7241,0.3057,0.6719,0.3506,1],[0.3637,0.7041,0.3985,0.6521,1],[0.3676,0.4124,0.3985,0.4337,1],[0.3718,0.5021,0.4021,0.5014,1],[0.3742,0.714,0.4057,0.6602,1],[0.3759,0.2007,0.4039,0.2676,1],[0.7191,0.2492,0.6674,0.3082,1],[0.7166,0.7562,0.6656,0.6963,1],[0.4098,0.232,0.431,0.2929,1],[0.4325,0.4199,0.449,0.4391,1],[0.707,0.2289,0.6584,0.2929,1],[0.7053,0.6133,0.6575,0.5862,1],[0.458,0.9468,0.4698,0.8317,1],[0.7031,0.5416,0.6548,0.532,1],[0.4725,0.6336,0.4797,0.5988,1],[0.6999,0.3467,0.6521,0.3831,1],[0.4772,0.7623,0.4833,0.6963,1],[0.4815,0.2825,-0.1584,0.0663,0],[0.697,0.8835,0.6512,0.7938,1],[0.5095,0.9179,1.0718,0.394,0],[0.5156,0.1272,0.5122,0.2134,1],[0.5188,0.7764,0.514,0.7053,1],[0.5343,0.9474,0.5266,0.8317,0],[0.553,0.1712,0.5402,0.2486,1],[0.5687,0.0431,0.5528,0.1476,1],[0.5704,0.4563,0.5528,0.4671,1],[0.6753,0.6145,0.6322,0.5862,1],[0.586,0.0298,0.5663,0.1376,1],[0.5893,0.7822,0.5663,0.7098,1],[0.5983,0.6729,0.5727,0.6286,1],[0.6005,0.6757,0.5745,0.6304,1],[0.6151,0.6958,0.5862,0.6458,1],[0.6172,0.9668,0.588,0.8506,1],[0.6172,0.9668,0.588,0.8506,1],[0.6657,0.2949,0.625,0.3443,1],[0.6213,0.3933,0.1656,0.0528,0],[0.6297,0.0587,0.5997,0.162,1],[0.6398,0.8816,0.6042,0.7866,1],[0.6401,0.4518,0.6051,0.4634,1],[0.6598,0.8946,0.6205,0.7983,1],[0.6592,0.2339,0.6205,0.2983,1],[0.647,0.3626,0.6106,0.3967,1],[0.6577,0.6391,0.6187,0.6051,1],[0.779,0.771,0.718,0.7116,1],[0.7805,0.2719,0.7198,0.3218,1],[0.7859,0.2784,0.7234,0.3263,1],[0.7863,0.2684,0.9147,0.69,0],[0.7907,0.0524,0.7252,0.153,1],[0.8006,0.7428,0.7387,0.6927,1],[0.8097,0.1153,0.7414,0.1999,1],[0.8138,0.7969,0.7514,0.7378,1],[0.8166,0.4725,0.7514,0.4779,1],[0.8388,0.3195,0.7694,0.356,1],[0.8403,0.7668,0.7748,0.7162,1],[0.8429,0.5233,0.7757,0.5185,1],[0.8437,0.4564,0.7757,0.4653,1],[0.8477,0.1315,0.7757,0.2071,1],[0.8526,0.0427,0.7784,0.1394,1],[0.8567,0.0701,0.7829,0.1593,1],[0.8622,0.8774,0.7992,0.8118,1],[0.8645,0.4301,0.7947,0.4427,1],[0.867,0.9929,0.8037,0.9084,1],[0.8672,0.5622,0.8001,0.551,1],[0.868,0.6848,0.801,0.6503,1],[0.8731,0.0672,0.7974,0.1548,1],[0.8732,0.1493,0.8001,0.218,1],[0.8739,0.4296,0.8028,0.4427,1],[0.877,0.2251,0.8037,0.2784,1],[0.8792,0.9421,0.8163,0.8687,1],[0.8812,0.5712,0.8136,0.5582,1],[0.8849,0.2193,0.81,0.2739,1],[0.887,0.5355,0.8199,0.5293,1],[0.8884,0.2854,0.8136,0.3272,1],[0.8923,0.9794,0.829,0.9003,1],[0.8988,0.2858,0.8236,0.3263,1],[0.8998,0.4879,0.8308,0.4896,1],[0.9063,0.1654,0.8308,0.2279,1],[0.908,0.2446,0.8317,0.292,1],[0.9141,0.8852,0.8515,0.8281,1],[0.9145,0.848,0.8533,0.7956,1],[0.9155,0.5894,0.8452,0.5745,1],[0.9159,0.4141,0.8434,0.4292,1],[0.9206,0.4061,0.847,0.4219,1],[0.9249,0.3757,0.8488,0.3976,1],[0.9251,0.6977,0.8597,0.6674,1],[0.9257,0.9076,0.8624,0.8488,1],[0.9319,0.5254,0.8624,0.5212,1],[0.9385,0.5916,0.8687,0.5772,1],[0.94,0.6687,0.8732,0.6431,1],[0.9456,0.673,0.8795,0.6476,1],[0.9494,0.2193,0.8732,0.2667,1],[0.9555,0.3508,0.8795,0.3759,1],[0.9557,0.1777,0.8786,0.2324,1],[0.9571,0.734,0.8958,0.7026,1],[0.9642,0.5573,0.894,0.5483,1],[0.9687,0.8185,0.9102,0.7793,1],[0.9724,0.362,0.8967,0.384,1],[0.9772,0.4267,0.9057,0.4373,1],[0.9814,0.6247,0.9138,0.6069,1],[0.982,0.5495,0.9129,0.542,1],[0.9469,0.6818,0.0817,1.0429,0],[0.9821,0.9125,0.9246,0.8633,1],[0.9769,0.8317,0.9192,0.7911,1]],"matches":1231,"correct":1181,"fix":"correct","error_m":0.39},"30_20":{"lines":[[0.7781,0.7209,0.7631,1.1394,0],[0.0123,0.3304,0.1069,0.3642,1],[0.7763,0.4697,0.7153,0.4761,1],[0.0554,0.3667,0.1458,0.394,1],[0.7751,0.2632,1.0591,0.1241,0],[0.7741,0.2485,0.7134,0.3046,1],[0.7725,0.3835,0.7116,0.4093,1],[0.7721,0.0207,0.7089,0.1313,1],[0.768,0.4743,0.708,0.4797,1],[0.7678,0.548,0.7234,1.1421,0],[0.1494,0.8536,0.2342,0.7685,1],[0.1515,0.2994,0.5871,1.1629,0],[0.1552,0.2321,0.9707,1.0131,0],[0.7564,0.7002,0.699,0.6557,1],[0.7535,0.4288,0.6945,0.4463,0],[0.7533,0.3419,0.6963,0.3777,1],[0.2161,0.304,0.2775,0.347,1],[0.7512,0.7808,0.6936,0.718,1],[0.7482,0.2329,0.6918,0.2938,1],[0.7474,0.7623,0.6259,0.7378,0],[0.2533,0.5812,0.4851,0.4932,0],[0.2659,0.2876,0.3181,0.3335,1],[0.7428,0.8015,0.6873,0.7324,1],[0.3239,0.4085,0.3651,0.4292,1],[0.4121,0.8808,0.5221,0.9995,0],[0.7139,0.9545,0.6665,0.8533,1],[0.7118,0.3756,0.6611,0.4048,1],[0.7112,0.3021,0.6611,0.3488,1],[0.4435,0.7096,0.4589,0.6548,1],[0.4531,0.9424,0.2613,0.8687,0],[0.7025,0.2896,0.6539,0.3398,1],[0.7011,0.5388,0.6539,0.5293,1],[0.7004,0.2019,0.986,0.7568,0],[0.4763,0.0956,0.4824,0.1864,1],[0.6985,0.0315,0.6512,0.1412,1],[0.6971,0.6214,0.6503,0.5925,1],[0.6956,0.1932,0.6494,0.2658,1],[0.6953,0.6186,0.6494,0.5907,1],[0.6903,0.1738,0.6449,0.2514,1],[0.5201,0.6203,0.514,0.5898,1],[0.5533,0.8255,0.782,-0.0663,0],[0.6785,0.7547,0.6358,0.6927,1],[0.5686,0.2895,0.5528,0.3407,1],[0.5687,0.0431,0.5528,0.1476,1],[0.5687,0.0431,0.5528,0.1476,1],[0.571,0.7491,0.4445,-0.0167,0],[0.5855,0.2298,0.7495,1.0366,0],[0.5936,0.6994,0.569,0.6485,1],[0.5948,0.5722,0.5708,0.5537,1],[0.5977,0.0688,0.5745,0.1683,1],[0.669,0.7713,0.6277,0.7044,1],[0.6664,0.7316,0.6259,0.6746,1],[0.6653,0.6437,0.9508,0.7008,0],[0.6238,0.7306,0.5925,0.6719,1],[0.6632,0.9845,0.6241,0.8705,1],[0.6322,0.6284,0.5979,0.5961,1],[0.6362,0.8518,0.6024,0.7622,1],[0.6417,0.536,0.606,0.5266,1],[0.6592,0.2339,0.6214,0.2983,1],[0.6453,0.1124,0.6106,0.2044,1],[0.7792,0.0357,0.7162,0.1412,1],[0.7797,0.4767,0.7189,0.4815,1],[0.7825,0.3042,0.7207,0.347,1],[0.7828,0.8838,0.7234,0.8037,1],[0.785,0.7788,0.7234,0.7198,1],[0.7891,0.727,0.727,0.6792,1],[0.7903,0.4061,0.7288,0.4255,1],[0.7917,0.1052,0.7261,0.1936,1],[0.7939,0.8092,0.7324,0.7441,1],[0.7975,0.2873,0.7333,0.3335,1],[0.7996,0.343,0.7351,0.3768,1],[0.7999,0.0264,0.7324,0.1331,1],[0.8008,0.0158,0.3254,0.6611,0],[0.8097,0.1153,0.7423,0.199,1],[0.8162,0.5939,0.7514,0.5745,1],[0.8254,0.3677,0.7577,0.3949,1],[0.8256,0.2457,0.7577,0.2992,1],[0.8267,0.3255,0.7577,0.3624,1],[0.8315,0.255,0.7622,0.3064,1],[0.8429,0.5233,0.7757,0.5185,1],[0.8526,0.0427,0.7784,0.1385,1],[0.8528,0.5118,0.7857,0.5095,1],[0.8589,0.1168,0.7857,0.1954,1],[0.8633,0.3644,0.3019,0.9553,0],[0.8645,0.4301,0.7956,0.4427,1],[0.8659,0.5578,0.7992,0.5474,1],[0.8672,0.5622,0.8001,0.551,1],[0.8711,0.4865,0.8019,0.4887,1],[0.8737,0.9047,0.8109,0.8362,1],[0.8762,0.3341,0.8037,0.366,1],[0.8811,0.2923,0.8064,0.3326,1],[0.8849,0.2193,0.81,0.2739,1],[0.8888,0.1742,0.8154,0.236,1],[0.8907,0.2152,0.8172,0.2694,1],[0.8916,0.9844,0.8272,0.9048,1],[0.8946,0.5188,0.8263,0.5158,1],[0.902,0.1177,0.8254,0.1909,1],[0.9022,0.0956,0.8254,0.1728,1],[0.9068,0.1814,0.8317,0.2396,1],[0.9079,0.524,0.8398,0.5203,1],[0.908,0.2446,0.8326,0.292,1],[0.9087,0.9085,0.8452,0.8452,1],[0.9132,0.0523,0.8353,0.1358,1],[0.9159,0.4141,0.8434,0.4292,1],[0.917,0.3962,0.8443,0.4138,1],[0.9206,0.4061,0.8461,0.4228,1],[0.9211,0.8657,0.8597,0.8127,1],[0.9217,0.1102,0.8443,0.181,1],[0.9217,0.1102,0.8443,0.181,1],[0.9244,0.4892,0.8551,0.4905,1],[0.93,0.5222,0.8606,0.5185,1],[0.9376,0.2261,0.8606,0.2739,1],[0.9385,0.5916,0.8687,0.5772,1],[0.9396,0.6187,0.8705,0.5997,1],[0.945,0.9206,0.884,0.8624,1],[0.9486,0.8194,0.8894,0.7766,1],[0.9504,0.295,0.8723,0.3299,1],[0.9505,0.1431,0.8732,0.2044,1],[0.9507,0.7778,0.8903,0.7414,1],[0.9529,0.6259,0.8849,0.6069,1],[0.9532,0.1563,0.8759,0.2134,1],[0.955,0.5882,0.884,0.5754,1],[0.9555,0.3125,0.8786,0.3443,1],[0.9557,0.1777,0.8786,0.2324,1],[0.9568,0.5846,0.8876,0.5708,1],[0.9571,0.734,0.8949,0.7026,1],[0.9603,0.5885,0.8903,0.5754,1],[0.9695,0.6497,0.903,0.6286,1],[0.9738,0.2281,0.8967,0.2721,1],[0.9739,0.3867,0.9003,0.4039,1],[0.9777,0.5454,0.9084,0.5384,1],[0.9789,0.0796,0.903,0.1458,1],[0.9819,0.3299,0.9057,0.356,1],[0.9821,0.8133,0.9237,0.7757,1],[0.9859,0.4352,0.9138,0.4445,1],[0.9926,0.2247,0.9156,0.2667,1],[0.9939,0.8837,0.6891,0.9201,0],[0.9636,0.4171,0.8903,0.4301,1],[0.5894,0.5786,0.8569,0.9273,0],[0.1584,0.4942,0.3569,0.2866,0]],"matches":329,"correct":281,"fix":"correct","error_m":1.37},"30_30":{"lines":[[0.0178,0.4389,0.866,0.8949,0],[0.0253,0.6737,0.1846,0.3199,0],[0.0554,0.3667,-0.0907,0.1566,0],[0.0599,0.2532,1.0393,0.7992,0],[0.7738,0.5587,1.0681,1.0212,0],[0.1225,0.8671,0.8308,0.0366,0],[0.1332,0.6768,0.2613,0.8687,0],[0.215,0.4215,0.3371,1.0429,0],[0.7507,0.4161,0.6945,0.4346,1],[0.2449,0.6842,0.8199,0.3317,0],[0.2533,0.5812,0.4851,0.4932,0],[0.7445,0.4027,0.4779,0.8425,0],[0.7327,0.3977,0.6773,0.4219,1],[0.3178,0.6226,0.4454,0.4977,0],[0.7296,0.3923,0.6764,0.4174,1],[0.3436,0.4527,0.8272,0.2405,0],[0.373,0.851,0.9093,0.4373,0],[0.7149,0.297,0.4102,0.8696,0],[0.4279,0.4976,0.1665,0.7929,0],[0.431,0.3653,0.4463,0.3976,1],[0.4435,0.7096,0.4589,0.6548,1],[0.7074,0.2118,-0.06,0.8163,0],[0.7034,0.3578,0.5582,0.5122,0],[0.4777,0.3629,0.3506,0.1728,0],[0.4793,0.7703,0.1746,0.0555,0],[0.4794,0.4712,0.1512,0.9337,0],[0.6971,0.6214,0.6503,0.5925,1],[0.6964,0.4009,0.9923,0.6602,0],[0.6962,0.0162,-0.0239,0.0997,0],[0.5217,0.849,0.6412,0.0889,0],[0.6877,0.3195,0.6421,0.3633,1],[0.6763,0.2464,0.8434,0.1764,0],[0.5855,0.2298,0.7495,1.0366,0],[0.6055,0.883,0.8461,0.4228,0],[0.6213,0.9449,0.134,0.4526,0],[0.6632,0.9845,0.6223,0.8714,0],[0.6294,0.9945,0.8308,0.1304,0],[0.6373,0.3412,-0.0239,0.0997,0],[0.7918,0.8865,0.7306,0.8073,1],[0.8107,0.1639,0.7062,0.0059,0],[0.8156,0.8984,0.6773,0.6683,0],[0.818,0.8246,-0.171,1.1223,0],[0.8247,0.6104,0.8967,0.1548,0],[0.8267,0.3255,0.7577,0.3624,1],[0.8557,0.2967,0.7838,0.338,1],[0.8603,0.1494,0.7875,0.2198,1],[0.871,0.4421,0.9878,0.3398,0],[0.8713,0.2413,0.7983,0.292,1],[0.8743,0.6464,0.1512,0.9337,0],[0.8749,0.3309,0.8028,0.3633,1],[0.8757,0.987,0.8118,0.9048,1],[0.8811,0.2923,0.8064,0.3326,1],[0.8867,0.2272,0.9589,1.1431,0],[0.8988,0.2858,0.8236,0.3263,1],[0.9057,0.1874,0.829,0.2459,1],[0.9068,0.1814,0.8317,0.2396,1],[0.917,0.3962,0.8443,0.4138,1],[0.9182,0.8568,0.856,0.8046,1],[0.9211,0.8657,0.8597,0.8127,1],[0.9428,0.5292,0.8723,0.5248,1],[0.9481,0.984,0.856,0.2486,0],[0.9532,0.1563,0.8768,0.2134,1],[0.9701,0.5929,1.0699,0.5537,0],[0.9708,0.4754,-0.0275,1.0338,0],[0.9939,0.8837,0.6891,0.9201,0],[0.9359,0.1898,0.9896,0.4481,0],[0.0854,0.9392,0.3073,0.2089,0],[0.7173,0.0725,0.4192,0.671,0]],"matches":68,"correct":23,"fix":"correct","error_m":2.15},"30_60":{"lines":[[0.0269,0.5034,0.7477,0.1773,0],[0.0555,0.4408,0.8154,0.3127,0],[0.7714,0.3082,0.356,0.6828,0],[0.7616,0.3236,0.3064,0.9102,0],[0.157,0.5059,0.6539,0.1295,0],[0.7504,0.728,0.7965,1.0591,0],[0.2398,0.1776,0.0185,0.3236,0],[0.2872,0.1653,-0.0997,0.1268,0],[0.3576,0.6975,0.69,0.6611,0],[0.3629,0.6794,0.6737,0.6647,0],[0.7238,0.3655,-0.1214,0.8037,0],[0.4156,0.8567,1.0582,0.773,0],[0.7043,0.9303,0.3064,0.2116,0],[0.4768,0.4624,0.0573,-0.0456,0],[0.4775,0.2974,0.9698,0.8371,0],[0.4996,0.6542,1.0591,0.125,0],[0.5222,0.3452,0.356,0.1773,0],[0.5725,0.2959,0.1629,0.3389,0],[0.5822,0.9819,-0.1421,0.8723,0],[0.6735,0.5982,0.8218,0.264,0],[0.6038,0.9354,-0.0618,0.0781,0],[0.6313,0.4927,0.1115,1.1304,0],[0.7841,0.041,0.9598,0.0329,0],[0.7863,0.2684,0.2965,0.2441,0],[0.8059,0.5876,0.1241,0.9995,0],[0.8139,0.8147,0.9598,0.0329,0],[0.8439,0.5021,0.356,0.6828,0],[0.8741,0.4341,0.3813,0.0907,0],[0.8859,0.6956,-0.19,0.1042,0],[0.8937,0.1801,0.3903,0.0636,0],[0.8969,0.2136,0.5411,0.5338,0],[0.9003,0.9271,1.014,0.2856,0],[0.9053,0.9055,0.7432,1.0221,0],[0.919,0.6893,0.3597,0.4165,0],[0.9239,0.8713,1.0284,0.0961,0],[0.9504,0.677,0.2044,1.1728,0],[0.9762,0.4536,0.0573,0.9445,0],[0.8185,0.2419,-0.0708,0.2784,0],[0.6768,0.4869,-0.0546,0.7866,0],[0.771,0.5026,-0.0474,1.1241,0],[0.9769,0.8317,0.3849,0.7947,0]],"matches":41,"correct":0,"fix":"none","error_m":null},"30_90":{"lines":[[0.0432,0.4554,0.1051,0.032,0],[0.0616,0.3327,0.8208,0.2694,0],[0.1478,0.5152,0.2685,0.6512,0],[0.7582,0.625,0.1006,0.1322,0],[0.1647,0.4113,0.9869,0.7505,0],[0.1659,0.5305,0.3533,0.292,0],[0.1666,0.5218,0.8569,0.7902,0],[0.1729,0.5429,-0.1421,0.8723,0],[0.1874,0.5325,0.3976,0.6485,0],[0.2111,0.4201,-0.1819,0.4977,0],[0.2215,0.2604,0.6746,0.421,0],[0.2472,0.6315,-0.1033,0.1304,0],[0.2489,0.3002,0.7613,0.0086,0],[0.2507,0.2298,0.2468,0.4698,0],[0.7454,0.0385,0.1277,0.4716,0],[0.2734,0.5405,0.3218,0.0077,0],[0.742,0.3994,0.1837,0.653,0],[0.2977,0.8812,0.7044,0.653,0],[0.3198,0.3975,0.4941,0.2514,0],[0.3306,0.3232,0.3714,0.2838,0],[0.3406,0.7441,0.0799,0.0438,0],[0.7256,0.6727,-0.1476,0.9273,0],[0.3576,0.6975,0.2857,0.2459,0],[0.3611,0.7859,0.1015,0.0338,0],[0.7236,0.2255,-0.0754,1.0979,0],[0.3835,0.572,0.2125,0.9896,0],[0.4059,0.3103,0.829,1.0889,0],[0.4124,0.3904,-0.1024,0.6205,0],[0.418,0.1692,-0.1882,0.0636,0],[0.4214,0.9691,0.2261,0.6376,0],[0.7095,0.785,0.0979,0.0438,0],[0.7034,0.3578,0.3723,0.5817,0],[0.4826,0.7,0.8254,0.7405,0],[0.4996,0.6542,0.2495,0.5329,0],[0.6935,0.8801,0.5474,1.0591,0],[0.56,0.0806,0.6133,0.6322,0],[0.5824,0.0251,0.5934,0.9968,0],[0.5933,0.0107,-0.0302,1.1079,0],[0.6702,0.8169,0.1232,0.0645,0],[0.6055,0.883,0.5465,1.1313,0],[0.6413,0.2739,0.7468,0.1764,0],[0.7971,0.9663,-0.0736,-0.0347,0],[0.8173,0.3073,0.1358,0.1196,0],[0.871,0.4421,0.0329,-0.0194,0],[0.8721,0.6769,0.5311,0.5356,0],[0.8944,0.868,0.2062,0.8696,0],[0.9112,0.4067,0.3642,0.9427,0],[0.9326,0.9536,0.4003,0.6927,0],[0.584,0.9847,0.1611,-0.0158,0],[0.9469,0.6818,-0.1385,0.0041,0],[0.0559,0.4992,0.282,0.1431,0],[0.7411,0.0795,-0.0338,-0.0113,0],[0.8851,0.0557,0.2965,0.2441,0],[0.2541,0.9308,0.5492,0.1773,0],[0.1253,0.0786,0.5429,0.5311,0]],"matches":55,"correct":0,"fix":"none","error_m":null},"30_180":{"lines":[[0.0594,0.4454,0.0194,0.2143,0],[0.0958,0.4839,0.6051,-0.0645,0],[0.164,0.171,0.3732,0.8254,0],[0.758,0.6906,0.0636,0.616,0],[0.172,0.1682,0.4607,0.2559,0],[0.1894,0.2114,0.2315,0.0275,0],[0.1937,0.5788,0.8118,0.7234,0],[0.2013,0.6148,0.9364,0.0257,0],[0.2263,0.5902,0.3551,0.681,0],[0.2319,0.5899,1.0609,0.4093,0],[0.2393,0.8906,0.5708,0.1079,0],[0.7486,0.6905,0.9346,0.0871,0],[0.7482,0.2329,0.2297,0.7396,0],[0.2506,0.9678,0.6837,0.9986,0],[0.2788,0.3893,0.3624,0.4282,0],[0.7415,0.597,0.5609,0.9093,0],[0.3152,0.3301,0.4084,0.514,0],[0.3239,0.4085,0.3317,0.4156,0],[0.3296,0.9009,0.1828,1.1449,0],[0.3352,0.2343,0.2288,0.2414,0],[0.3782,0.1693,1.0212,0.7739,0],[0.7202,0.8438,0.8777,0.2297,0],[0.3838,0.5227,0.394,0.6313,0],[0.4213,0.787,0.4616,-0.0393,0],[0.425,0.6976,0.1358,0.255,0],[0.449,0.7625,-0.1376,0.1006,0],[0.4673,0.1588,-0.1548,0.8145,0],[0.4686,0.0534,-0.1449,0.0375,0],[0.6907,0.4388,0.2333,0.0447,0],[0.5327,0.1095,0.329,0.3687,0],[0.6863,0.5392,0.2604,0.2875,0],[0.5373,0.1665,-0.0248,0.6539,0],[0.5878,0.8489,-0.1151,0.977,0],[0.5949,0.0654,0.3714,0.8218,0],[0.5997,0.751,0.0745,0.0699,0],[0.664,0.3425,0.7053,-0.0194,0],[0.6281,0.384,0.2333,0.0447,0],[0.632,0.7042,0.9219,0.4319,0],[0.6604,0.453,0.5447,0.6773,0],[0.7929,0.5873,0.3777,0.0799,0],[0.8224,0.4496,0.051,0.7712,0],[0.854,0.9739,0.1683,0.7243,0],[0.8856,0.7016,0.0347,-0.0185,0],[0.9009,0.5657,0.6548,0.0835,0],[0.9049,0.2779,1.0329,1.1286,0],[0.9323,0.0246,0.8985,0.8506,0],[0.9587,0.3352,0.3199,1.0375,0],[0.9602,0.6148,0.0194,0.4833,0],[0.9627,0.7711,0.4048,0.514,0],[0.9692,0.276,0.7685,0.2495,0],[0.9918,0.4912,0.1584,1.0844,0],[0.9962,0.5528,-0.1512,1.1873,0],[0.718,0.9148,0.56,0.5266,0],[0.6345,0.4965,0.1602,0.0636,0],[0.8728,0.0587,-0.1701,1.0708,0],[0.7429,0.2363,0.4373,0.7649,0],[0.1851,0.4392,0.162,0.5465,0],[0.1312,0.2071,-0.0131,0.5041,0],[0.5273,0.777,0.2811,0.8317,0],[0.9917,0.9301,0.1746,0.0366,0],[0.969,0.3113,0.4995,-0.0483,0]],"matches":61,"correct":0,"fix":"none","error_m":null}},"grid":{"1.4_0":[{"alt":2000.0,"fix":"correct","err":0.36,"ok":2019,"m":2055},{"alt":1600.0,"fix":"correct","err":0.73,"ok":2372,"m":2395},{"alt":1260.0,"fix":"correct","err":0.27,"ok":1913,"m":1946},{"alt":1000.0,"fix":"correct","err":0.26,"ok":1800,"m":1828},{"alt":800.0,"fix":"correct","err":0.49,"ok":1913,"m":1942},{"alt":630.0,"fix":"correct","err":0.54,"ok":1407,"m":1432},{"alt":500.0,"fix":"correct","err":0.51,"ok":1494,"m":1510}],"1.4_10":[{"alt":2000.0,"fix":"correct","err":0.27,"ok":1151,"m":1197},{"alt":1600.0,"fix":"correct","err":0.81,"ok":1504,"m":1553},{"alt":1260.0,"fix":"correct","err":0.29,"ok":1295,"m":1349},{"alt":1000.0,"fix":"correct","err":0.49,"ok":1310,"m":1348},{"alt":800.0,"fix":"correct","err":0.76,"ok":1439,"m":1459},{"alt":630.0,"fix":"correct","err":0.66,"ok":1042,"m":1078},{"alt":500.0,"fix":"correct","err":0.63,"ok":1160,"m":1179}],"1.4_20":[{"alt":2000.0,"fix":"correct","err":1.84,"ok":140,"m":194},{"alt":1600.0,"fix":"correct","err":1.38,"ok":223,"m":281},{"alt":1260.0,"fix":"correct","err":1.37,"ok":220,"m":265},{"alt":1000.0,"fix":"correct","err":0.77,"ok":256,"m":292},{"alt":800.0,"fix":"correct","err":0.45,"ok":317,"m":341},{"alt":630.0,"fix":"correct","err":0.9,"ok":239,"m":267},{"alt":500.0,"fix":"correct","err":1.78,"ok":261,"m":286}],"1.4_30":[{"alt":2000.0,"fix":"none","err":null,"ok":5,"m":57},{"alt":1600.0,"fix":"none","err":null,"ok":9,"m":56},{"alt":1260.0,"fix":"correct","err":0.51,"ok":18,"m":60},{"alt":1000.0,"fix":"correct","err":2.97,"ok":17,"m":58},{"alt":800.0,"fix":"correct","err":2.61,"ok":15,"m":53},{"alt":630.0,"fix":"none","err":null,"ok":12,"m":50},{"alt":500.0,"fix":"wrong","err":6.25,"ok":15,"m":40}],"1.4_60":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":58},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":71},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":49},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":46},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":42},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":37},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":29}],"1.4_90":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":82},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":62},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":52},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":44},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":52},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":43},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":37}],"1.4_180":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":60},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":52},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":53},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":43},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":48},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":49},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":34}],"5_0":[{"alt":2000.0,"fix":"correct","err":0.4,"ok":2059,"m":2107},{"alt":1600.0,"fix":"correct","err":0.79,"ok":2478,"m":2508},{"alt":1260.0,"fix":"correct","err":0.25,"ok":2034,"m":2055},{"alt":1000.0,"fix":"correct","err":0.27,"ok":1895,"m":1919},{"alt":800.0,"fix":"correct","err":0.52,"ok":1974,"m":2007},{"alt":630.0,"fix":"correct","err":0.58,"ok":1413,"m":1438},{"alt":500.0,"fix":"correct","err":0.52,"ok":1451,"m":1475}],"5_10":[{"alt":2000.0,"fix":"correct","err":0.38,"ok":1174,"m":1228},{"alt":1600.0,"fix":"correct","err":0.97,"ok":1555,"m":1607},{"alt":1260.0,"fix":"correct","err":0.31,"ok":1399,"m":1440},{"alt":1000.0,"fix":"correct","err":0.52,"ok":1323,"m":1364},{"alt":800.0,"fix":"correct","err":0.56,"ok":1458,"m":1488},{"alt":630.0,"fix":"correct","err":0.67,"ok":1064,"m":1089},{"alt":500.0,"fix":"correct","err":0.76,"ok":1108,"m":1138}],"5_20":[{"alt":2000.0,"fix":"correct","err":1.89,"ok":128,"m":183},{"alt":1600.0,"fix":"correct","err":1.68,"ok":213,"m":265},{"alt":1260.0,"fix":"correct","err":0.82,"ok":206,"m":265},{"alt":1000.0,"fix":"correct","err":0.4,"ok":224,"m":276},{"alt":800.0,"fix":"correct","err":1.39,"ok":273,"m":320},{"alt":630.0,"fix":"correct","err":0.68,"ok":216,"m":266},{"alt":500.0,"fix":"correct","err":0.73,"ok":232,"m":270}],"5_30":[{"alt":2000.0,"fix":"none","err":null,"ok":8,"m":66},{"alt":1600.0,"fix":"none","err":null,"ok":8,"m":50},{"alt":1260.0,"fix":"none","err":null,"ok":6,"m":60},{"alt":1000.0,"fix":"none","err":null,"ok":9,"m":54},{"alt":800.0,"fix":"correct","err":3.22,"ok":13,"m":56},{"alt":630.0,"fix":"none","err":null,"ok":8,"m":54},{"alt":500.0,"fix":"none","err":null,"ok":8,"m":44}],"5_60":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":69},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":46},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":63},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":50},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":47},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":40},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":24}],"5_90":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":76},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":54},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":48},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":42},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":39},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":44},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":40}],"5_180":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":51},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":51},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":50},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":51},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":60},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":39},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":22}],"15_0":[{"alt":2000.0,"fix":"correct","err":0.33,"ok":2070,"m":2113},{"alt":1600.0,"fix":"correct","err":0.84,"ok":2547,"m":2572},{"alt":1260.0,"fix":"correct","err":0.33,"ok":2174,"m":2213},{"alt":1000.0,"fix":"correct","err":0.31,"ok":2039,"m":2075},{"alt":800.0,"fix":"correct","err":0.51,"ok":2117,"m":2149},{"alt":630.0,"fix":"correct","err":0.62,"ok":1617,"m":1640},{"alt":500.0,"fix":"correct","err":0.6,"ok":1431,"m":1446}],"15_10":[{"alt":2000.0,"fix":"correct","err":0.26,"ok":1062,"m":1111},{"alt":1600.0,"fix":"correct","err":0.67,"ok":1390,"m":1441},{"alt":1260.0,"fix":"correct","err":0.52,"ok":1294,"m":1343},{"alt":1000.0,"fix":"correct","err":0.34,"ok":1223,"m":1278},{"alt":800.0,"fix":"correct","err":0.42,"ok":1269,"m":1309},{"alt":630.0,"fix":"correct","err":0.84,"ok":973,"m":1008},{"alt":500.0,"fix":"correct","err":0.65,"ok":876,"m":901}],"15_20":[{"alt":2000.0,"fix":"correct","err":3.45,"ok":95,"m":168},{"alt":1600.0,"fix":"correct","err":1.72,"ok":122,"m":198},{"alt":1260.0,"fix":"correct","err":1.01,"ok":132,"m":196},{"alt":1000.0,"fix":"correct","err":1.38,"ok":117,"m":171},{"alt":800.0,"fix":"correct","err":1.89,"ok":123,"m":183},{"alt":630.0,"fix":"correct","err":1.32,"ok":135,"m":192},{"alt":500.0,"fix":"correct","err":1.6,"ok":101,"m":133}],"15_30":[{"alt":2000.0,"fix":"none","err":null,"ok":4,"m":64},{"alt":1600.0,"fix":"none","err":null,"ok":2,"m":74},{"alt":1260.0,"fix":"none","err":null,"ok":5,"m":59},{"alt":1000.0,"fix":"none","err":null,"ok":7,"m":45},{"alt":800.0,"fix":"none","err":null,"ok":5,"m":51},{"alt":630.0,"fix":"none","err":null,"ok":7,"m":54},{"alt":500.0,"fix":"none","err":null,"ok":7,"m":40}],"15_60":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":55},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":56},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":39},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":44},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":44},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":41},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":23}],"15_90":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":89},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":94},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":75},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":59},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":45},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":43},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":24}],"15_180":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":76},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":81},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":61},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":52},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":58},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":41},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":27}],"30_0":[{"alt":2000.0,"fix":"correct","err":0.58,"ok":1949,"m":1997},{"alt":1600.0,"fix":"correct","err":0.68,"ok":2104,"m":2144},{"alt":1260.0,"fix":"correct","err":0.38,"ok":2165,"m":2204},{"alt":1000.0,"fix":"correct","err":0.35,"ok":1667,"m":1718},{"alt":800.0,"fix":"correct","err":0.59,"ok":1179,"m":1214},{"alt":630.0,"fix":"correct","err":0.57,"ok":900,"m":921},{"alt":500.0,"fix":"correct","err":0.7,"ok":525,"m":548}],"30_10":[{"alt":2000.0,"fix":"correct","err":0.95,"ok":1250,"m":1284},{"alt":1600.0,"fix":"correct","err":0.66,"ok":1439,"m":1486},{"alt":1260.0,"fix":"correct","err":0.48,"ok":1490,"m":1534},{"alt":1000.0,"fix":"correct","err":0.39,"ok":1181,"m":1231},{"alt":800.0,"fix":"correct","err":0.67,"ok":835,"m":864},{"alt":630.0,"fix":"correct","err":0.73,"ok":681,"m":707},{"alt":500.0,"fix":"correct","err":0.67,"ok":395,"m":411}],"30_20":[{"alt":2000.0,"fix":"correct","err":1.04,"ok":327,"m":384},{"alt":1600.0,"fix":"correct","err":1.1,"ok":348,"m":408},{"alt":1260.0,"fix":"correct","err":0.67,"ok":352,"m":404},{"alt":1000.0,"fix":"correct","err":1.37,"ok":281,"m":329},{"alt":800.0,"fix":"correct","err":1.14,"ok":204,"m":248},{"alt":630.0,"fix":"correct","err":0.98,"ok":191,"m":222},{"alt":500.0,"fix":"correct","err":0.78,"ok":111,"m":137}],"30_30":[{"alt":2000.0,"fix":"correct","err":1.23,"ok":37,"m":92},{"alt":1600.0,"fix":"correct","err":1.92,"ok":34,"m":91},{"alt":1260.0,"fix":"correct","err":2.97,"ok":29,"m":86},{"alt":1000.0,"fix":"correct","err":2.15,"ok":23,"m":68},{"alt":800.0,"fix":"correct","err":1.66,"ok":26,"m":75},{"alt":630.0,"fix":"correct","err":1.35,"ok":20,"m":49},{"alt":500.0,"fix":"none","err":2.5,"ok":10,"m":37}],"30_60":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":50},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":51},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":60},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":41},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":30},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":21},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":14}],"30_90":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":50},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":57},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":68},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":55},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":37},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":32},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":16}],"30_180":[{"alt":2000.0,"fix":"none","err":null,"ok":0,"m":64},{"alt":1600.0,"fix":"none","err":null,"ok":0,"m":72},{"alt":1260.0,"fix":"none","err":null,"ok":0,"m":59},{"alt":1000.0,"fix":"none","err":null,"ok":0,"m":61},{"alt":800.0,"fix":"none","err":null,"ok":0,"m":52},{"alt":630.0,"fix":"none","err":null,"ok":0,"m":43},{"alt":500.0,"fix":"none","err":null,"ok":0,"m":18}]},"criteria":{"ok_m":5,"min_inliers":12,"prior_m":150,"search_m":300}}</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById('demo-data').textContent);
+  // open at the start of the story, not at the scroll height of the page we came from
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  function toTop() { if (!location.hash) window.scrollTo(0, 0); }
+  toTop();
+  window.addEventListener('load', function () { toTop(); setTimeout(toTop, 60); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) toTop(); });
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var DAZ = D.daz;
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+  function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+  // ---------- scroll engine
+  var scrubbers = [];
+  function progressOf(el) {
+    var r = el.getBoundingClientRect(), span = el.offsetHeight - window.innerHeight;
+    return span > 0 ? clamp(-r.top / span, 0, 1) : 0;
+  }
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      ticking = false;
+      scrubbers.forEach(function (s) { s.fn(progressOf(s.el)); });
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      document.getElementById('progress').style.transform = 'scaleX(' + (h > 0 ? window.scrollY / h : 0) + ')';
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () { onScroll(); layoutLinks(); });
+
+  // ---------- 1. descent
+  var frames = Array.prototype.slice.call(document.querySelectorAll('#frames img'));
+  var says = Array.prototype.slice.call(document.querySelectorAll('.say [data-show]'));
+  var altv = document.getElementById('altv'), cue = document.getElementById('cue');
+  scrubbers.push({ el: document.getElementById('descent'), fn: function (p) {
+    var x = p * (frames.length - 1), k = Math.min(Math.floor(x), frames.length - 2), s = x - k;
+    frames.forEach(function (im, i) {
+      var o = i === k ? 1 : (i === k + 1 ? smooth(s) : 0);
+      im.style.opacity = o;
+      im.style.transform = i === k ? 'scale(' + (1 + 0.14 * smooth(s)) + ')' : 'none';
+    });
+    var a = D.alts[k] + (D.alts[k + 1] - D.alts[k]) * s;
+    altv.textContent = fmt(a);
+    says.forEach(function (el) {
+      var r = el.getAttribute('data-show').split(' ').map(Number);
+      var fadeIn = r[0] === 0 ? 1 : smooth((p - r[0]) / 0.06), fadeOut = 1 - smooth((p - (r[1] - 0.06)) / 0.06);
+      var o = Math.min(fadeIn, fadeOut);
+      el.style.opacity = o;
+      el.style.transform = 'translateY(' + ((1 - o) * 18) + 'px)';
+    });
+    cue.style.opacity = 1 - smooth(p / 0.08);
+  }});
+
+  // ---------- link drawing (shared by the story and the lab)
+  var NS = 'http://www.w3.org/2000/svg';
+  var linkSets = {};
+  function drawLinks(id, key, animate) {
+    var svg = document.getElementById(id), pair = svg.parentNode;
+    var fr = pair.querySelectorAll('.frame');
+    function box(el) { var x = 0, y = 0, n = el; while (n && n !== pair) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+      return { left: x, top: y, width: el.offsetWidth, height: el.offsetHeight }; }
+    var pr = { left: 0, top: 0, width: pair.offsetWidth, height: pair.offsetHeight }, a = box(fr[0]), b = box(fr[1]);
+    svg.setAttribute('viewBox', '0 0 ' + pr.width + ' ' + pr.height);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    linkSets[id] = key;
+    if (!key) return;
+    var m = D.matches[key];
+    svg.classList.remove('drawn');
+    m.lines.filter(function (L) { return L[2] >= 0 && L[2] <= 1 && L[3] >= 0 && L[3] <= 1; }).forEach(function (L, i) {
+      var x1 = a.left - pr.left + L[0] * a.width, y1 = a.top - pr.top + L[1] * a.height;
+      var x2 = b.left - pr.left + L[2] * b.width, y2 = b.top - pr.top + L[3] * b.height;
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', x1); ln.setAttribute('y1', y1); ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+      ln.setAttribute('class', L[4] ? 'g' : 'b');
+      var len = Math.hypot(x2 - x1, y2 - y1);
+      if (animate && !reduce) {
+        ln.style.strokeDasharray = len; ln.style.strokeDashoffset = len;
+        ln.style.transitionDelay = (i * 6) + 'ms';
+      }
+      svg.appendChild(ln);
+    });
+    if (animate && !reduce) { svg.getBoundingClientRect(); requestAnimationFrame(function () { svg.classList.add('drawn'); }); }
+  }
+  function layoutLinks() {
+    Object.keys(linkSets).forEach(function (id) { drawLinks(id, linkSets[id], false); });
+    placeBox();
+  }
+
+  // ---------- 2. how it works
+  var how = document.getElementById('how'), steps = document.querySelectorAll('.step');
+  var mapFull = document.getElementById('mapFull'), box = document.getElementById('footBox');
+  var howRead = document.getElementById('howRead'), mapCap = document.getElementById('mapCap');
+  function placeBox() {
+    var pb = D.full.photo_box;
+    box.style.left = (pb[0] * 100) + '%'; box.style.top = (pb[1] * 100) + '%';
+    box.style.width = (pb[2] * 100) + '%'; box.style.height = (pb[2] * 100) + '%';
+  }
+  placeBox();
+  var cb = D.full.crop_box, k = 1 / cb[2];
+  var zoomT = 'translate(' + (-cb[0] * k * 100) + '%,' + (-cb[1] * k * 100) + '%) scale(' + k + ')';
+  var m0 = D.matches['1.4_0'];
+  function setStep(n) {
+    how.setAttribute('data-step', n);
+    steps.forEach(function (s) { s.classList.toggle('on', +s.getAttribute('data-step') === n); });
+    mapFull.style.transform = n >= 2 ? zoomT : 'none';
+    box.classList.toggle('on', n === 1 || n === 2);
+    if (n >= 2) { var cpb = D.crop.photo_box; box.style.left = (cpb[0] * 100) + '%'; box.style.top = (cpb[1] * 100) + '%'; box.style.width = (cpb[2] * 100) + '%'; box.style.height = (cpb[2] * 100) + '%'; } else { placeBox(); }
+    mapCap.textContent = n >= 2 ? Math.round(D.crop.crop_m).toLocaleString('en-US') + ' m across' : '2.6 km across';
+    if (n >= 3) { if (linkSets.howLinks !== '1.4_0') drawLinks('howLinks', '1.4_0', true); } else { drawLinks('howLinks', null); }
+    document.getElementById('retP').classList.toggle('on', n === 4);
+    document.getElementById('retM').classList.toggle('on', n === 4);
+    var rd = {1: ['2.6 km', 'of map, stored on board'], 2: ['1,000 m', 'above the landing point'],
+              3: [fmt(m0.correct), 'right pairs out of ' + fmt(m0.matches)], 4: [m0.error_m.toFixed(1) + ' m', 'from the true position']}[n];
+    howRead.innerHTML = '<strong>' + rd[0] + '</strong><span>' + rd[1] + '</span>';
+  }
+  setStep(1);
+  var curStep = 1;
+  scrubbers.push({ el: how, fn: function () {
+    var line = window.innerHeight * (window.matchMedia('(max-width: 860px)').matches ? 0.74 : 0.5), best = 1;
+    steps.forEach(function (st) { if (st.getBoundingClientRect().top < line) best = +st.getAttribute('data-step'); });
+    if (best !== curStep) { curStep = best; setStep(best); }
+  }});
+
+  // ---------- 3. the turning Sun
+  var turnMaps = document.getElementById('turnMaps');
+  var tImgs = DAZ.map(function (d, i) {
+    var im = document.createElement('img');
+    im.src = 'assets/demo/map-1.4-' + d + '.jpg'; im.alt = ''; im.style.opacity = i === 0 ? 1 : 0;
+    turnMaps.appendChild(im); return im;
+  });
+  var AZ0 = D.landing_sun_az;
+  function onRing(az, r) { var t = az * Math.PI / 180; return [50 + r * Math.sin(t), 50 - r * Math.cos(t)]; }
+  (function staticDial() {
+    var a = onRing(AZ0 - 20, 44), b = onRing(AZ0 + 20, 44);
+    document.getElementById('okArc').setAttribute('d', 'M' + a[0] + ' ' + a[1] + ' A44 44 0 0 1 ' + b[0] + ' ' + b[1]);
+    var t = onRing(AZ0, 56.5); var okt = document.getElementById('okTxt'); okt.setAttribute('x', t[0]); okt.setAttribute('y', t[1] - 1.6);
+    var l1 = onRing(AZ0, 41.5), l2 = onRing(AZ0, 46.5), lt = document.getElementById('landTick');
+    lt.setAttribute('x1', l1[0]); lt.setAttribute('y1', l1[1]); lt.setAttribute('x2', l2[0]); lt.setAttribute('y2', l2[1]);
+    var tt = onRing(AZ0, 56.5), ltx = document.getElementById('landTxt'); ltx.setAttribute('x', tt[0]); ltx.setAttribute('y', tt[1] + 1.6);
+  })();
+  var sunDot = document.getElementById('sunDot'), sunRay = document.getElementById('sunRay');
+  var dayv = document.getElementById('dayv'), degv = document.getElementById('degv'), verdict = document.getElementById('verdict');
+  function setTurn(deg) {
+    var i = 0; while (i < DAZ.length - 2 && deg > DAZ[i + 1]) i++;
+    var s = clamp((deg - DAZ[i]) / (DAZ[i + 1] - DAZ[i]), 0, 1);
+    tImgs.forEach(function (im, j) { im.style.opacity = j === i ? 1 : (j === i + 1 ? s : 0); });
+    var p = onRing(AZ0 + deg, 44), q = onRing(AZ0 + deg, 30);
+    sunDot.setAttribute('cx', p[0]); sunDot.setAttribute('cy', p[1]);
+    sunRay.setAttribute('x1', p[0]); sunRay.setAttribute('y1', p[1]); sunRay.setAttribute('x2', q[0]); sunRay.setAttribute('y2', q[1]);
+    dayv.textContent = (deg / 12.19).toFixed(1);
+    degv.textContent = Math.round(deg) + '°';
+    var ok = deg <= 20, edge = deg > 20 && deg < 45;
+    verdict.className = 'verdict ' + (ok ? 'ok' : 'lost');
+    verdict.lastChild.textContent = ok ? 'The map still works' : (edge ? 'Getting lost' : 'The lander is lost');
+  }
+  setTurn(0);
+  scrubbers.push({ el: document.getElementById('turn'), fn: function (p) { setTurn(180 * smooth(clamp((p - 0.05) / 0.9, 0, 1))); } });
+
+  // ---------- 4. the lab
+  var el = '1.4', di = 0;
+  var ticks = document.getElementById('ticks'), range = document.getElementById('dazRange');
+  DAZ.forEach(function (d, i) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = d + '°';
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.addEventListener('click', function () { setLab(el, i, true); });
+    ticks.appendChild(b);
+  });
+  range.addEventListener('input', function () { setLab(el, +range.value, true); });
+  document.querySelectorAll('#elSeg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#elSeg button').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      setLab(b.getAttribute('data-el'), di, true);
+    });
+  });
+  var okCount = document.getElementById('okCount'), labStatus = document.getElementById('labStatus');
+  var shown = 1800, countAnim = null;
+  function countTo(target, total) {
+    if (countAnim) cancelAnimationFrame(countAnim);
+    var from = shown, t0 = performance.now(), dur = reduce ? 0 : 700;
+    (function step(now) {
+      var t = dur ? clamp((now - t0) / dur, 0, 1) : 1;
+      shown = from + (target - from) * smooth(t);
+      okCount.innerHTML = fmt(shown) + '<small>of ' + fmt(total) + '</small>';
+      if (t < 1) countAnim = requestAnimationFrame(step);
+    })(t0);
+  }
+  function setLab(e, i, animate) {
+    el = e; di = i; range.value = i;
+    Array.prototype.forEach.call(ticks.children, function (b, j) { b.setAttribute('aria-pressed', j === i ? 'true' : 'false'); });
+    var key = e + '_' + DAZ[i], m = D.matches[key];
+    document.getElementById('labPhoto').src = 'assets/demo/' + (e === '1.4' ? 'desc-1.4-3.jpg' : 'desc-30-3.jpg');
+    document.getElementById('labMap').src = 'assets/demo/map-' + e + '-' + DAZ[i] + '.jpg';
+    document.getElementById('labPhotoCap').textContent = 'Sun ' + e + '°';
+    document.getElementById('labMapCap').textContent = 'Sun turned ' + DAZ[i] + '°';
+    countTo(m.correct, m.matches);
+    var ok = m.fix === 'correct', wrong = m.fix === 'wrong';
+    labStatus.className = 'status ' + (ok ? 'ok' : 'lost');
+    labStatus.lastChild.textContent = ok ? 'Position found · ' + m.error_m.toFixed(1) + ' m from the truth'
+      : (wrong ? 'Wrong position · ' + m.error_m.toFixed(1) + ' m off' : 'No position · the lander is lost');
+    drawLinks('labLinks', key, animate);
+  }
+  // draw the lab the first time it comes into view
+  if ('IntersectionObserver' in window) {
+    var labSeen = false;
+    new IntersectionObserver(function (es, obs) {
+      es.forEach(function (e) { if (e.isIntersecting && !labSeen) { labSeen = true; setLab(el, di, true); obs.disconnect(); } });
+    }, { threshold: 0.35 }).observe(document.getElementById('labPair'));
+  } else { setLab(el, 0, false); }
+
+  // ---------- 5. results grid
+  var g = document.getElementById('rgrid');
+  function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+  function cellColor(t) { return [lerp(28, 235, t), lerp(27, 231, t), lerp(25, 223, t)]; }
+  var head = document.createElement('div'); head.className = 'h rh'; head.textContent = 'Sun height ↓  ·  turned →'; g.appendChild(head);
+  DAZ.forEach(function (d) { var h = document.createElement('div'); h.className = 'h'; h.textContent = d + '°'; g.appendChild(h); });
+  var tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+  var cells = [];
+  D.els.forEach(function (e) {
+    var rh = document.createElement('div'); rh.className = 'h rh';
+    rh.textContent = e + '°' + (e === D.els[0] ? '  south pole' : ''); g.appendChild(rh);
+    DAZ.forEach(function (d) {
+      var list = D.grid[e + '_' + d], ok = list.filter(function (x) { return x.fix === 'correct'; });
+      var wr = list.filter(function (x) { return x.fix === 'wrong'; }).length;
+      var errs = ok.map(function (x) { return x.err; }).sort(function (a, b) { return a - b; });
+      var med = errs.length ? errs[Math.floor((errs.length - 1) / 2)] : null;
+      if (errs.length && errs.length % 2 === 0) med = (errs[errs.length / 2 - 1] + errs[errs.length / 2]) / 2;
+      var t = ok.length / list.length, c = cellColor(t), lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+      var cell = document.createElement('div'); cell.className = 'c'; cell.tabIndex = 0;
+      cell.style.background = 'rgb(' + c.join(',') + ')'; cell.style.color = lum > 0.5 ? '#0b0b0a' : '#ebe7df';
+      cell.innerHTML = '<b>' + ok.length + '/' + list.length + '</b><small>' + (med !== null ? med.toFixed(1) + ' m' : 'lost') +
+        (wr ? ' · ' + wr + ' wrong' : '') + '</small><span class="dots">' + list.map(function (x) {
+          return '<i class="' + (x.fix === 'correct' ? 'ok' : (x.fix === 'wrong' ? 'wr' : '')) + '"></i>'; }).join('') + '</span>';
+      cell.setAttribute('aria-label', 'Sun ' + e + '°, map turned ' + d + '°: ' + ok.length + ' of ' + list.length + ' positions found');
+      function show(ev) {
+        tip.innerHTML = '<div style="color:#85817a;margin-bottom:4px">Sun ' + e + '° · map turned ' + d + '°</div><table>' + list.map(function (x) {
+          return '<tr><td>' + fmt(x.alt) + ' m</td><td style="color:' + (x.fix === 'correct' ? '#4fbf8f' : (x.fix === 'wrong' ? '#e5534b' : '#85817a')) + '">' +
+            (x.fix === 'correct' ? x.err.toFixed(1) + ' m' : (x.fix === 'wrong' ? 'wrong, ' + x.err.toFixed(1) + ' m' : 'lost')) +
+            '</td><td style="color:#85817a">' + fmt(x.ok) + ' right pairs</td></tr>'; }).join('') + '</table>';
+        tip.hidden = false;
+        var r = cell.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+        var x = clamp(r.left + r.width / 2 - tw / 2, 8, window.innerWidth - tw - 8), y = r.top - th - 10;
+        if (y < 8) y = r.bottom + 10;
+        tip.style.left = x + 'px'; tip.style.top = y + 'px';
+      }
+      cell.addEventListener('mouseenter', show); cell.addEventListener('focus', show);
+      cell.addEventListener('mouseleave', function () { tip.hidden = true; }); cell.addEventListener('blur', function () { tip.hidden = true; });
+      g.appendChild(cell); cells.push(cell);
+    });
+  });
+  window.addEventListener('scroll', function () { tip.hidden = true; }, { passive: true });
+
+  // ---------- reveal + counters (content is visible without JS; only elements below the fold get hidden first)
+  var rvs = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+  if (!reduce && 'IntersectionObserver' in window) {
+    rvs.forEach(function (n) { if (n.getBoundingClientRect().top > window.innerHeight) n.classList.add('pre'); });
+    cells.forEach(function (c, i) { c.style.transitionDelay = (i % 7) * 45 + Math.floor(i / 7) * 60 + 'ms'; });
+    var ro = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.remove('pre'); ro.unobserve(e.target);
+        var n = e.target.querySelector('[data-count]'); if (n) countUp(n);
+      });
+    }, { rootMargin: '0px 0px -12% 0px' });
+    rvs.forEach(function (n) { ro.observe(n); });
+  }
+  function countUp(n) {
+    var to = parseFloat(n.getAttribute('data-count')), dec = +n.getAttribute('data-dec');
+    var pre = n.getAttribute('data-pre') || '', suf = n.getAttribute('data-suf') || '', t0 = performance.now();
+    (function step(now) {
+      var t = clamp((now - t0) / 1200, 0, 1);
+      n.textContent = pre + (to * smooth(t)).toFixed(dec) + suf;
+      if (t < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  onScroll();
+})();
+</script>
+</body>
+</html>

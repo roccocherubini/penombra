@@ -3,6 +3,7 @@
 **Synthetic descent images of the lunar south pole, with exact ground truth for every pixel.**
 
 Website: **https://roccocherubini.github.io/penombra/**
+Interactive demo: **https://roccocherubini.github.io/penombra/demo.html**
 
 ![Camera image, depth, surface normals and landing hazards, 500 m above the rim of Shackleton](assets/og.jpg)
 
@@ -16,6 +17,7 @@ and camera pose.
 ## What is here
 
 - `index.html` and `assets/`: the project page, published with GitHub Pages.
+- `demo.html` and `assets/demo/`: Demo v0, map-based navigation when the Sun moves (interactive).
 - Sample dataset v0 (24 frames, descent to the rim of Shackleton, 734 MB): coming on
   Zenodo in November 2026, with a short program to load it.
 

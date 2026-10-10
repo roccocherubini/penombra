@@ -25,6 +25,10 @@
   --ash: #b8b4ab;         /* secondary text */
   --regolith: #ebe7df;    /* primary text = sunlit ground */
   --sun: #f2b44c;         /* used only for the Sun */
+  --sun-wash: rgba(242, 180, 76, 0.1);
+  --sun-glint: rgba(242, 180, 76, 0.38);
+  --sun-ring: rgba(242, 180, 76, 0.5);
+  --sun-halo: rgba(242, 180, 76, 0.45);
   --veil: rgba(0, 0, 0, 0.78);
   --display: "Bodoni Moda", "Bodoni 72", Didot, "Times New Roman", serif;
   --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -79,6 +83,24 @@ h2 {
 .top nav a { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); text-decoration: none; }
 .top nav a:hover { color: var(--regolith); }
 @media (max-width: 720px) { .top nav a:not(.keep) { display: none; } }
+/* the demo button: the one warm, moving thing in the bar (a small Sun circling the horizon) */
+.top nav { align-items: center; }
+.top nav a.demo-btn { position: relative; overflow: hidden; isolation: isolate; display: inline-flex; align-items: center; gap: 10px;
+  padding: 9px 15px 9px 12px; border: 1px solid var(--sun); border-radius: 999px; color: var(--sun); background: var(--sun-wash);
+  animation: halo 2.8s ease-out infinite; transition: background .25s, color .25s; }
+.top nav a.demo-btn::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(100deg, transparent 35%, var(--sun-glint) 50%, transparent 65%); background-size: 260% 100%;
+  animation: sweep 3.8s ease-in-out infinite; }
+.top nav a.demo-btn:hover { background: var(--sun); color: var(--void); }
+.top nav a.demo-btn:hover .orbit { box-shadow: inset 0 0 0 1px var(--void); }
+.top nav a.demo-btn:hover .orbit::after { background: var(--void); }
+.orbit { position: relative; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--sun-ring); flex: none; }
+.orbit::after { content: ""; position: absolute; width: 5px; height: 5px; top: -2.5px; left: 4.5px; border-radius: 50%; background: var(--sun);
+  transform-origin: 2.5px 9.5px; animation: orbit 4.5s linear infinite; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes sweep { 0%, 35% { background-position: 130% 0; } 75%, 100% { background-position: -30% 0; } }
+@keyframes halo { 0% { box-shadow: 0 0 0 0 var(--sun-halo); } 70%, 100% { box-shadow: 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) { .top nav a.demo-btn, .top nav a.demo-btn::before, .orbit::after { animation: none; } }
 
 /* hero */
 .hero { padding-block: clamp(36px, 6vw, 72px) 0; }
@@ -247,6 +269,22 @@ h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em
 footer { border-top: 1px solid var(--rule); padding-block: 28px 40px; }
 footer .wrap { display: flex; flex-direction: column; gap: 10px; }
 footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max-width: 110ch; }
+
+/* demo teaser */
+.demo-card { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 56px); align-items: center; text-decoration: none; color: inherit; padding: clamp(18px, 3vw, 32px); border: 1px solid var(--rule); transition: border-color .3s; }
+.demo-card:hover { border-color: var(--ash); }
+.demo-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.demo-imgs figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.demo-imgs .ph { overflow: hidden; aspect-ratio: 1; max-width: 100%; background: var(--plate); }
+.demo-imgs img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s cubic-bezier(.22, .61, .36, 1); }
+.demo-card:hover .demo-imgs img { transform: scale(1.06); }
+.demo-imgs figcaption { font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dust); }
+.demo-imgs figcaption b { font-weight: 500; color: var(--sun); }
+.demo-text { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.demo-text h2 { font-size: clamp(30px, 3.6vw, 48px); max-width: 16ch; }
+.demo-text p { margin: 0; color: var(--ash); font-size: 16px; max-width: 42ch; }
+.demo-text .btn { align-self: flex-start; }
+@media (max-width: 860px) { .demo-card { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
@@ -259,6 +297,7 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
       <a href="#truth">Ground truth</a>
       <a href="#dataset">Dataset</a>
       <a class="keep" href="#contact">Contact</a>
+      <a class="keep demo-btn" href="demo.html"><span class="orbit" aria-hidden="true"></span>Demo v0</a>
     </nav>
   </div>
 </header>
@@ -422,6 +461,23 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
         <video src="assets/panels.mp4" poster="assets/panels-poster.jpg" muted loop playsinline controls preload="none" aria-label="The full descent shown three ways: camera image, depth and landing hazards"></video>
         <figcaption class="cap">The whole descent, 3,000 m to 500 m in 120 s, with two of its ground-truth layers.</figcaption>
       </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="demo">
+    <div class="wrap">
+      <a class="demo-card" href="demo.html">
+        <div class="demo-imgs">
+          <figure><div class="ph"><img src="assets/demo/map-1.4-0.jpg" alt="Map of the landing site lit as on landing day" loading="lazy"></div><figcaption>Map lit as on landing day</figcaption></figure>
+          <figure><div class="ph"><img src="assets/demo/map-1.4-60.jpg" alt="The same map with the Sun turned by 60 degrees" loading="lazy"></div><figcaption>Same map, <b>Sun turned 60°</b></figcaption></figure>
+        </div>
+        <div class="demo-text">
+          <span class="label">Demo v0 · interactive</span>
+          <h2>Same place, Sun turned 60°: the lander is lost.</h2>
+          <p>A lander finds its position by matching its camera to a map of the site. Penombra measured how far the Sun can move before that stops working: about 20°, a day and a half at the south pole.</p>
+          <span class="btn">Open the demo</span>
+        </div>
+      </a>
     </div>
   </section>
 
