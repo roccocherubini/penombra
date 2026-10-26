@@ -18,8 +18,11 @@ and camera pose.
 
 - `index.html` and `assets/`: the project page, published with GitHub Pages.
 - `demo.html` and `assets/demo/`: Demo v0, map-based navigation when the Sun moves (interactive).
-- Sample dataset v0 (24 frames, descent to the rim of Shackleton, 734 MB): coming on
-  Zenodo in November 2026, with a short program to load it.
+- Comparison with real photos: four images from the Narrow Angle Camera of NASA's Lunar
+  Reconnaissance Orbiter, Sun 1.2–1.4° above the horizon, against Penombra renders of the
+  same ground at the same instant (86–99% of pixels in the same light or shadow).
+- Sample dataset v0 (24 frames, descent to the rim of Shackleton, 734 MB): coming soon on
+  Zenodo, with a short program to load it.
 
 Custom sequences (your landing site, trajectory, date and camera) are available on request.
 
@@ -32,4 +35,4 @@ https://www.linkedin.com/in/rocco-maria-cherubini-a941bb3a0
 ## Licence
 
 Page, images and videos: CC BY 4.0 (see `LICENSE`). Elevation data: NASA LOLA; Sun and
-Moon positions: NASA NAIF SPICE.
+Moon positions: NASA NAIF SPICE; orbital photos: NASA/GSFC/Arizona State University (LROC).
