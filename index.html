@@ -170,7 +170,7 @@ h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em
 .seg button { background: transparent; color: var(--ash); border: 0; padding: 9px 14px; font: 500 12px/1 var(--mono); letter-spacing: .06em; cursor: pointer; }
 .seg button + button { border-left: 1px solid var(--rule); }
 .seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--regolith); color: var(--void); }
-.compare { position: relative; aspect-ratio: 1; max-width: 100%; overflow: hidden; background: var(--plate); user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+.compare { position: relative; aspect-ratio: 1; width: 100%; max-width: min(100%, calc(100vh - 150px)); overflow: hidden; background: var(--plate); user-select: none; -webkit-user-select: none; touch-action: pan-y; }
 .compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .compare .after { clip-path: inset(0 0 0 var(--pos, 50%)); }
 .compare .tag { position: absolute; top: 12px; font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; background: var(--veil); padding: 6px 8px; color: var(--regolith); }
@@ -178,7 +178,10 @@ h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em
 .compare .tag.r { right: 12px; }
 .handle { position: absolute; top: 0; bottom: 0; left: var(--pos, 50%); width: 0; pointer-events: none; }
 .handle::before { content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: var(--regolith); }
-.handle::after { content: "◂ ▸"; position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); background: var(--regolith); color: var(--void); font: 500 12px/1 var(--mono); padding: 9px 8px; white-space: nowrap; }
+.compare img.outline { pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.compare.edges img.outline { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .compare img.outline { transition: none; } }
+.handle::after { content: "◂ ▸"; position: absolute; top: 50%; left: 0; transform: translate(calc(-50% + var(--nudge, 0px)), -50%); background: var(--regolith); color: var(--void); font: 500 12px/1 var(--mono); padding: 9px 8px; white-space: nowrap; }
 .compare input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; }
 .compare input:focus-visible ~ .handle::after { outline: 2px solid var(--regolith); outline-offset: 3px; }
 .cap { color: var(--dust); font-size: 14px; line-height: 1.5; margin: 0; }
@@ -479,14 +482,16 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
             <button type="button" data-val="M113679075LC" aria-pressed="false">95°</button>
             <button type="button" data-val="M143264605RC" aria-pressed="true">240°</button>
           </div>
-          <div class="compare" id="vcompare" style="--pos: 50%">
+          <div class="compare edges" id="vcompare" style="--pos: 50%">
             <img id="v-photo" src="assets/val-M143264605RC-photo.jpg" alt="Real photo of the landing area taken by NASA's Lunar Reconnaissance Orbiter, with the Sun 1.4 degrees above the horizon">
             <img id="v-pen" class="after" src="assets/val-M143264605RC-penombra.jpg" alt="The same square kilometre rendered by Penombra for the same instant: the same craters and shadow edges">
+            <img id="v-outline" class="outline" src="assets/val-M143264605RC-outline.png" alt="" aria-hidden="true">
             <span class="tag l">LRO photo</span>
             <span class="tag r">Penombra</span>
             <input id="v-range" type="range" min="0" max="100" step="0.5" value="50" aria-label="Drag to compare the real photo with Penombra">
             <span class="handle" aria-hidden="true"></span>
           </div>
+          <div class="seg"><button type="button" id="v-edges" aria-pressed="true">Shadow edges of the photo</button></div>
           <p class="cap" id="v-cap"></p>
         </div>
         <div class="prose">
@@ -497,7 +502,7 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
             <li><strong class="num">−3 to +9%</strong><span>difference in brightness of the sunlit ground</span><em>Against the calibrated reflectance of the orbital photos</em></li>
             <li><strong class="num">2.3× → 1.3×</strong><span>small shadows compared with the photos, before and after one correction</span><em>The test showed the added roughness was too strong; one parameter fixes it. The elevation map alone has eight times too few. The correction goes into the next version of the dataset.</em></li>
           </ul>
-          <p style="margin-top: 1em">What does not match: the small craters and boulders Penombra adds have the right number and size, but they are not the real ones. Penombra images are for testing algorithms, not a map of the actual rocks.</p>
+          <p style="margin-top: 1em">What is not meant to match: the small craters and boulders Penombra adds have the right number and size, but they are not the real ones. Penombra images are for testing algorithms, not a map of the actual rocks.</p>
         </div>
       </div>
     </div>
@@ -712,8 +717,14 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
   else { v.play().catch(function () { btn.textContent = 'Play'; }); }
 
   // Before / after
+  // keep the handle label fully inside the image when the handle is at an edge
+  function slide(box, input) {
+    var p = parseFloat(input.value), w = box.clientWidth, x = p / 100 * w, half = 22;
+    box.style.setProperty('--pos', p + '%');
+    box.style.setProperty('--nudge', (Math.max(0, half - x) - Math.max(0, x - (w - half))) + 'px');
+  }
   var cmp = document.getElementById('compare'), range = document.getElementById('ba-range');
-  range.addEventListener('input', function () { cmp.style.setProperty('--pos', range.value + '%'); });
+  range.addEventListener('input', function () { slide(cmp, range); });
   var dem = document.getElementById('ba-dem'), pen = document.getElementById('ba-pen');
   document.querySelectorAll('[data-alt]').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -733,14 +744,24 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
   };
   var vcmp = document.getElementById('vcompare'), vrange = document.getElementById('v-range');
   var vph = document.getElementById('v-photo'), vpen = document.getElementById('v-pen'), vcap = document.getElementById('v-cap');
-  vrange.addEventListener('input', function () { vcmp.style.setProperty('--pos', vrange.value + '%'); });
+  var vout = document.getElementById('v-outline'), vedges = document.getElementById('v-edges');
+  vrange.addEventListener('input', function () { slide(vcmp, vrange); });
+  window.addEventListener('resize', function () { slide(cmp, range); slide(vcmp, vrange); });
+  vedges.addEventListener('click', function () {
+    var on = vedges.getAttribute('aria-pressed') !== 'true';
+    vedges.setAttribute('aria-pressed', on ? 'true' : 'false');
+    vcmp.classList.toggle('edges', on);
+  });
   function showVal(id) {
     var c = VCAP[id];
     vph.src = 'assets/val-' + id + '-photo.jpg';
     vpen.src = 'assets/val-' + id + '-penombra.jpg';
+    vout.src = 'assets/val-' + id + '-outline.png';
     vcap.textContent = 'LRO Narrow Angle Camera image ' + c[0] + ', ' + c[1] + '. Sun ' + c[2] + '° above the horizon, from azimuth ' + c[3] +
-      '°. Penombra rendered the same square kilometre for the same instant; 1 pixel = 1 m, same grey scale. Over the whole area compared, ' +
-      c[4] + '% of pixels agree. Drag the handle.';
+      '°. Penombra rendered the same square kilometre for the same instant; 1 pixel = 1 m, same grey scale. ' +
+      'The amber line is the edge of the large shadows in the photo: drag the handle and it fits the shadows of Penombra too. ' +
+      'Over the whole area compared, ' + c[4] + '% of pixels agree. Craters smaller than about 20 m and boulders are generated ' +
+      'with the right statistics, not copied from the photo, so they sit in different places.';
     document.querySelectorAll('[data-val]').forEach(function (o) { o.setAttribute('aria-pressed', o.getAttribute('data-val') === id ? 'true' : 'false'); });
   }
   document.querySelectorAll('[data-val]').forEach(function (b) {
