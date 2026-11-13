@@ -20,7 +20,8 @@ and camera pose.
 - `demo.html` and `assets/demo/`: Demo v0, map-based navigation when the Sun moves (interactive).
 - Comparison with real photos: four images from the Narrow Angle Camera of NASA's Lunar
   Reconnaissance Orbiter, Sun 1.2–1.4° above the horizon, against Penombra renders of the
-  same ground at the same instant (86–99% of pixels in the same light or shadow).
+  same ground at the same instant (86–99% of pixels in the same light or shadow; the large
+  shadows come from the elevation data, Penombra adds the fine grain).
 - Sample dataset v0 (24 frames, descent to the rim of Shackleton, 734 MB): coming soon on
   Zenodo, with a short program to load it.
 

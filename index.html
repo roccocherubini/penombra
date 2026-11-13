@@ -279,6 +279,7 @@ h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em
 .lines > div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) auto; gap: 14px; align-items: center; border-bottom: 1px solid var(--rule); padding-block: 14px; }
 .lines dt { font: 500 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); }
 .lines dd { margin: 0; font: 400 15.5px/1.4 var(--mono); overflow-wrap: anywhere; user-select: all; }
+@media (max-width: 480px) { .lines > div { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; } .lines dt { grid-column: 1 / -1; } .lines dd { font-size: 14.5px; } }
 .copy { background: transparent; color: var(--ash); border: 1px solid var(--rule); font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 7px 9px; cursor: pointer; }
 .copy:hover { color: var(--regolith); border-color: var(--regolith); }
 .todo { outline: 1px dashed var(--sun); outline-offset: 3px; color: var(--sun); }
@@ -302,6 +303,34 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
 .demo-text p { margin: 0; color: var(--ash); font-size: 16px; max-width: 42ch; }
 .demo-text .btn { align-self: flex-start; }
 @media (max-width: 860px) { .demo-card { grid-template-columns: minmax(0, 1fr); } }
+
+/* real photo pairs: chart */
+.pairs { margin-top: clamp(64px, 8vw, 104px); border-top: 1px solid var(--rule); padding-top: clamp(28px, 4vw, 44px); }
+.pairs-head { display: flex; flex-direction: column; gap: 14px; max-width: 60ch; }
+.pairs-head p { margin: 0; color: var(--ash); max-width: 56ch; }
+.pchart { margin: clamp(24px, 3vw, 36px) 0 0; --real: #3987e5; --pen: #199e70; }
+.plegend { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 500 11.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); margin-bottom: 12px; }
+.plegend span { display: inline-flex; align-items: center; gap: 8px; }
+.plegend i { width: 9px; height: 9px; display: inline-block; }
+.plegend .real { background: var(--real); border-radius: 50%; }
+.plegend .pen { background: var(--pen); transform: rotate(45deg); }
+.pplot { position: relative; width: 100%; }
+.pplot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pplot text { font: 500 11px/1 var(--mono); letter-spacing: .04em; fill: var(--dust); }
+.pplot text.note { fill: var(--ash); letter-spacing: .02em; }
+.ptip { position: absolute; pointer-events: none; background: var(--plate); border: 1px solid var(--rule); padding: 10px 12px; font: 400 13px/1.45 var(--body); color: var(--regolith); min-width: 190px; max-width: 250px; opacity: 0; transition: opacity .12s; z-index: 2; }
+.ptip.on { opacity: 1; }
+.ptip b { display: block; font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dust); margin-bottom: 6px; }
+.ptip span { display: flex; align-items: center; gap: 8px; color: var(--ash); }
+.ptip span i { width: 8px; height: 8px; flex: none; }
+.ptip span em { font-style: normal; color: var(--regolith); margin-left: auto; padding-left: 10px; }
+.pchart figcaption { margin-top: 16px; max-width: 74ch; }
+.ptable { margin-top: 14px; color: var(--ash); font-size: 14px; }
+.ptable summary { cursor: pointer; font: 500 11.5px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dust); width: fit-content; padding: 6px 0; }
+.ptable table { border-collapse: collapse; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.ptable th, .ptable td { text-align: left; padding: 7px 22px 7px 0; border-bottom: 1px solid var(--rule); font-weight: 400; }
+.ptable th { color: var(--dust); font: 500 11.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.ptable td:first-child { color: var(--regolith); }
 </style>
 </head>
 <body>
@@ -511,9 +540,35 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
       <div class="facts vfacts">
         <div class="fact"><strong class="num">86–99%</strong><span>of pixels in the same light or shadow</span></div>
         <div class="fact"><strong class="num">&lt; 10%</strong><span>difference in brightness where the Sun hits</span></div>
-        <div class="fact"><strong class="num">1.3×</strong><span>small shadows vs the photo (2.3× before one fix)</span></div>
+        <div class="fact"><strong class="num">1.3×</strong><span>small shadows vs the photo (2.3× before tuning on these photos; 1.3× on 11 photos not used to tune)</span></div>
       </div>
-      <p class="cap vnote">Craters under about 20 m and boulders are generated, not copied: right number and size, different places. Four photos, Sun 1.2° to 1.4° high, 1 pixel = 1 m.</p>
+      <p class="cap vnote">The large shadows come from NASA's elevation data and the Sun's position: the elevation map alone scores the same, 88–99%. Penombra adds the fine grain. Craters under about 20 m and boulders are generated, not copied: right number and size, different places. Four photos, Sun 1.2° to 1.4° high, 1 pixel = 1 m.</p>
+
+      <div class="pairs" id="pairs">
+        <div class="pairs-head">
+          <span class="label">The same question, asked of real photos</span>
+          <h3>When the Sun turns, real photos stop matching. Penombra predicts when.</h3>
+          <p>Fifteen orbiter photos of the site, each with the Sun in a different direction, were matched pair by pair with the same software. Then Penombra rendered the same pairs.</p>
+        </div>
+        <figure class="pchart">
+          <div class="plegend"><span><i class="real"></i>Real photos (LRO)</span><span><i class="pen"></i>Penombra, same instants</span></div>
+          <div class="pplot" id="pplot" role="img" aria-label="Scatter chart of 104 pairs of photos. With the Sun in the same direction 98 percent or more of matched points agree, in the real photos and in Penombra. With the Sun 19 to 28 degrees apart about two thirds agree in the real photos and a little over half in Penombra. From 39 degrees apart none agree in the real photos and almost none in Penombra."></div>
+          <figcaption class="cap">Each mark is one pair of photos: 104 pairs, 2 m per pixel, SIFT matching, keeping a match only when each photo picks the other. Up: the share of matched points that agree with each other. Across: how far the Sun turned between the two photos. The orbiter has no pairs between 5° and 19° or between 28° and 39°.</figcaption>
+        </figure>
+        <details class="ptable">
+          <summary>The numbers</summary>
+          <table>
+            <thead><tr><th>Sun turned by</th><th>Pairs</th><th>Real photos</th><th>Penombra</th></tr></thead>
+            <tbody>
+              <tr><td>under 5°</td><td>10</td><td>98%</td><td>over 99%</td></tr>
+              <tr><td>19° to 28°</td><td>22</td><td>68%</td><td>55%</td></tr>
+              <tr><td>39° to 170°</td><td>72</td><td>0%</td><td>0%</td></tr>
+            </tbody>
+          </table>
+          <p class="cap" style="margin-top:10px">Median share of matched points that agree. In the middle band the two rise and fall together, pair by pair (rank correlation 0.91). From 39° no pair of real photos has a single consistent match; one Penombra pair in 72 has three.</p>
+        </details>
+      </div>
+      <script id="pairs-data" type="application/json">[[0.95,3008,3077,3753,3758],[0.95,6550,6565,7085,7097],[1.91,2759,2772,3230,3243],[1.91,5520,5541,4272,4285],[1.92,3722,3844,3860,3878],[2.87,1650,1705,2005,2021],[2.87,4265,4306,4343,4376],[3.82,1896,1945,1984,1995],[3.83,4863,5369,5378,5404],[4.78,3079,3387,3527,3551],[19.11,200,242,175,206],[19.11,275,293,113,125],[20.06,411,466,385,434],[20.07,63,88,37,64],[21.02,34,53,15,38],[21.02,96,121,67,110],[21.97,71,96,45,84],[22.27,151,166,83,103],[22.93,48,70,36,66],[22.94,45,69,31,51],[22.94,47,69,40,80],[23.89,29,60,39,75],[23.89,104,134,104,168],[24.18,92,118,49,81],[24.84,23,52,22,59],[24.84,41,70,57,103],[24.85,10,26,7,54],[25.22,58,104,26,64],[26.42,186,219,60,100],[26.76,9,27,12,31],[27.13,35,74,19,61],[27.71,5,29,9,35],[39.18,0,31,0,50],[40.13,0,28,0,34],[42.05,0,33,0,50],[43.96,0,19,0,35],[43.96,0,28,0,20],[44.91,0,26,0,15],[47.78,0,27,0,23],[48.45,0,10,0,24],[48.69,0,31,0,41],[49.4,0,21,0,17],[50.57,0,34,0,50],[50.6,0,43,0,36],[51.32,0,21,0,42],[52.27,0,19,3,34],[63.07,0,22,0,27],[64.02,0,26,0,33],[66.89,0,26,0,25],[69.68,0,20,0,12],[71.38,0,17,0,20],[73.29,0,20,0,25],[75.21,0,22,0,31],[75.82,0,33,0,34],[76.16,0,17,0,30],[76.99,0,30,0,31],[89.75,0,40,0,41],[90.7,0,25,0,46],[92.62,0,25,0,42],[94.53,0,14,0,22],[96.23,0,13,0,19],[99.26,0,35,0,28],[101.17,0,37,0,31],[113.64,0,24,0,26],[114.59,0,11,0,24],[115.34,0,12,0,20],[116.17,0,17,0,13],[117.12,0,19,0,13],[117.46,0,15,0,21],[118.27,0,14,0,23],[118.37,0,26,0,15],[119.04,0,36,0,21],[120.28,0,23,0,16],[120.95,0,7,0,15],[126.39,0,26,0,28],[138.44,0,31,0,42],[139.39,0,24,0,39],[140.06,0,19,0,9],[140.35,0,38,0,43],[141.01,0,14,0,9],[141.3,0,31,0,34],[141.31,0,28,0,55],[143.22,0,28,0,36],[143.22,0,30,0,30],[143.49,0,23,0,20],[143.88,0,11,0,11],[145.13,0,32,0,36],[145.4,0,25,0,19],[145.5,0,22,0,23],[162.33,0,32,0,32],[163.28,0,32,0,43],[164.24,0,38,0,33],[165.19,0,37,0,40],[165.57,0,49,0,47],[165.91,0,12,0,18],[166.15,0,23,0,33],[166.52,0,39,0,35],[166.72,0,33,0,36],[167.67,0,7,0,13],[168.06,0,26,0,30],[168.44,0,44,0,52],[169.59,0,32,0,39],[170.35,0,36,0,30],[170.54,0,36,0,44]]</script>
     </div>
   </section>
 
@@ -527,7 +582,7 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
         <div class="demo-text">
           <span class="label">Demo v0 · interactive</span>
           <h2>Same place, Sun turned 60°: the lander is lost.</h2>
-          <p>A lander finds its position by matching its camera to a map of the site. Penombra measured how far the Sun can move before that stops working: about 20°, a day and a half at the south pole.</p>
+          <p>A lander finds its position by matching its camera to a map of the site. In Penombra's test that always works while the Sun has moved less than 20°, about a day and a half at the south pole, and never from 60°. Real photos agree: pairs of orbiter images still match with the Sun 28° apart, and no longer from 39°.</p>
           <span class="btn">Open the demo</span>
         </div>
       </a>
@@ -554,7 +609,7 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
         <div class="part">
           <span class="label">Light</span>
           <h3>Lunar reflectance</h3>
-          <p>The Lunar-Lambert model with the McEwen phase function, rendered with Blender Cycles, including light bounced between slopes. Pixel values are calibrated reflectance.</p>
+          <p>The Lunar-Lambert reflectance law with McEwen's coefficients, rendered with Blender Cycles, including light bounced between slopes. Pixel values are calibrated reflectance.</p>
         </div>
         <div class="part">
           <span class="label">Detail</span>
@@ -568,8 +623,8 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
         </div>
         <div class="part">
           <span class="label">Trajectory</span>
-          <h3>A flyable descent</h3>
-          <p>A powered-descent guidance law, written in Python and in MATLAB with identical results, with checks on thrust and clearance above the ground.</p>
+          <h3>A plausible descent</h3>
+          <p>A polynomial descent path of the kind real landers follow, written in Python and in MATLAB with identical results, with checks on thrust and clearance above the ground. The camera is aimed at the target; the vehicle's attitude is not modelled.</p>
         </div>
       </div>
     </div>
@@ -644,9 +699,10 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
         <h2>Version 0, autumn 2026</h2>
       </div>
       <div class="prose">
-        <p>One site, one date, one trajectory so far. Done since the first images: a navigation demonstration with 196 position fixes measured against the ground truth, and a comparison with four real photos from NASA's Lunar Reconnaissance Orbiter. Next come more sites and lighting conditions, oblique descents, and a full camera model for the orbital photos.</p>
+        <p>One site, one date, one trajectory so far. Done since the first images: a navigation demonstration with 196 position fixes measured against the ground truth, a comparison with four real photos from NASA's Lunar Reconnaissance Orbiter, and 104 pairs of real photos matched against each other and against Penombra. Next come more sites and lighting conditions, oblique descents, and a full camera model for the orbital photos.</p>
         <ul class="limits">
           <li>Rocks and soil share the same reflectance; there is no Earthshine.</li>
+          <li>Brightness is checked against real photos only for a camera looking straight down; inside deep shadow the picture is mostly rendering noise.</li>
           <li>The distant terrain is smoother than the terrain near the target.</li>
           <li>The camera is generic, not a model of a specific flight camera.</li>
           <li>Small craters and boulders are realistic in number and size, not the real ones.</li>
@@ -805,6 +861,77 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
       } else { select(); }
     });
   });
+})();
+</script>
+
+<script>
+(function () {
+  // Real photo pairs: one mark per pair, drawn at the real pixel size so text stays readable on phones.
+  var el = document.getElementById('pplot'), src = document.getElementById('pairs-data');
+  if (!el || !src) return;
+  var D = JSON.parse(src.textContent), NS = 'http://www.w3.org/2000/svg';
+  var tip = document.createElement('div'); tip.className = 'ptip'; el.appendChild(tip);
+  var svg, geo, marks = [], cur = -1;
+  function mk(tag, attrs, parent) { var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); (parent || svg).appendChild(n); return n; }
+  function pct(c, m) { return m ? 100 * c / m : 0; }
+  function draw() {
+    var W = el.clientWidth; if (!W) return;
+    var small = W < 560, H = small ? 300 : Math.round(Math.max(340, Math.min(430, W * 0.4)));
+    var m = { l: 44, r: small ? 8 : 16, t: 26, b: 46 };
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var X = function (a) { return m.l + pw * a / 180; }, Y = function (p) { return m.t + ph * (1 - p / 100); };
+    if (svg) el.removeChild(svg);
+    svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    el.insertBefore(svg, tip);
+    [0, 25, 50, 75, 100].forEach(function (p) {
+      mk('line', { x1: m.l, x2: W - m.r, y1: Y(p), y2: Y(p), style: 'stroke:var(--rule);stroke-width:1' });
+      mk('text', { x: m.l - 8, y: Y(p) + 4, 'text-anchor': 'end' }).textContent = p + '%';
+    });
+    [0, 30, 60, 90, 120, 150, 180].forEach(function (a) {
+      mk('text', { x: X(a), y: H - m.b + 18, 'text-anchor': a === 180 ? 'end' : (a === 0 ? 'start' : 'middle') }).textContent = a + '°';
+    });
+    mk('text', { x: m.l, y: 12 }).textContent = 'MATCHED POINTS THAT AGREE';
+    mk('text', { x: W - m.r, y: H - 6, 'text-anchor': 'end' }).textContent = small ? 'SUN TURNED BY' : 'HOW FAR THE SUN TURNED BETWEEN THE TWO PHOTOS';
+    mk('text', { x: X(small ? 15 : 8), y: Y(98) + 4, 'class': 'note' }).textContent = 'Same light';
+    mk('text', { x: X(104), y: Y(0) - 14, 'text-anchor': 'middle', 'class': 'note' }).textContent = small ? 'From 39°: almost none' : 'From 39°: almost nothing left to match';
+    var s = 4.6, dx = 2.6; marks = [];
+    D.forEach(function (d, i) {
+      var x = X(d[0]), yr = Y(pct(d[1], d[2])), yp = Y(pct(d[3], d[4]));
+      var p = mk('rect', { x: x + dx - s * 0.78, y: yp - s * 0.78, width: s * 1.56, height: s * 1.56, transform: 'rotate(45 ' + (x + dx) + ' ' + yp + ')', style: 'fill:var(--pen);stroke:var(--void);stroke-width:1.5' });
+      var r = mk('circle', { cx: x - dx, cy: yr, r: s - 0.4, style: 'fill:var(--real);stroke:var(--void);stroke-width:1.5' });
+      marks.push({ x: x, yr: yr, yp: yp, r: r, p: p });
+    });
+    geo = { W: W, H: H }; cur = -1;
+  }
+  function pick(ev) {
+    var b = el.getBoundingClientRect(), t = ev.touches ? ev.touches[0] : ev;
+    var px = t.clientX - b.left, py = t.clientY - b.top, best = -1, bd = 1e9;
+    marks.forEach(function (k, i) {
+      var d = Math.min(Math.hypot(k.x - px, k.yr - py), Math.hypot(k.x - px, k.yp - py));
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (bd > 36) return hide();
+    if (best !== cur) {
+      if (cur >= 0) { marks[cur].r.style.stroke = 'var(--void)'; marks[cur].p.style.stroke = 'var(--void)'; }
+      cur = best; var k = marks[best], d = D[best];
+      k.r.style.stroke = 'var(--regolith)'; k.p.style.stroke = 'var(--regolith)';
+      svg.appendChild(k.p); svg.appendChild(k.r);
+      tip.innerHTML = '<b>Sun turned by ' + d[0].toFixed(0) + '°</b>' +
+        '<span><i style="background:var(--real);border-radius:50%"></i>Real photos<em>' + d[1] + ' of ' + d[2] + '</em></span>' +
+        '<span><i style="background:var(--pen);transform:rotate(45deg)"></i>Penombra<em>' + d[3] + ' of ' + d[4] + '</em></span>';
+      var left = k.x + 14; if (left + 250 > geo.W) left = Math.max(0, k.x - 264);
+      tip.style.left = left + 'px'; tip.style.top = Math.max(0, Math.min(k.yr, k.yp) - 10) + 'px';
+    }
+    tip.classList.add('on');
+  }
+  function hide() {
+    if (cur >= 0) { marks[cur].r.style.stroke = 'var(--void)'; marks[cur].p.style.stroke = 'var(--void)'; cur = -1; }
+    tip.classList.remove('on');
+  }
+  el.addEventListener('mousemove', pick); el.addEventListener('mouseleave', hide);
+  el.addEventListener('touchstart', pick, { passive: true });
+  draw();
+  var t0; window.addEventListener('resize', function () { clearTimeout(t0); t0 = setTimeout(draw, 120); });
 })();
 </script>
 </body>
