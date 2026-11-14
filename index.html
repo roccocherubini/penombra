@@ -253,6 +253,8 @@ h1 { font: 400 clamp(60px, 7vw, 100px)/.9 var(--display); letter-spacing: -.02em
 @media (max-width: 900px) { .ds { grid-template-columns: minmax(0, 1fr); } }
 .status { background: var(--plate); padding: 22px; display: flex; flex-direction: column; gap: 12px; }
 .status p { margin: 0; color: var(--ash); font-size: 15px; line-height: 1.55; }
+.status .btn { align-self: flex-start; }
+.status .doi { font: 400 12.5px/1.4 var(--mono); user-select: all; overflow-wrap: anywhere; }
 .pill { align-self: flex-start; font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--regolith); padding: 7px 9px; }
 
 /* who */
@@ -650,13 +652,15 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; line-height: 1.6; max
             <dt>Date</dt><dd>27 November 2026, 15:00 UTC</dd>
             <dt>Sun</dt><dd>1.40° above the horizon, 4.05° above the real skyline</dd>
             <dt>Ground truth</dt><dd>Per pixel, per frame and per scene, as above</dd>
-            <dt>Size</dt><dd>734 MB</dd>
+            <dt>Size</dt><dd>733 MB</dd>
             <dt>Licence</dt><dd>CC BY 4.0, free to use with attribution</dd>
           </dl>
         </div>
         <div class="status">
-          <span class="pill">Coming soon</span>
-          <p>The sample dataset will be published on Zenodo with a DOI, together with a short program to load it. Write to receive it earlier.</p>
+          <span class="pill">On Zenodo</span>
+          <p>The sample dataset is published on Zenodo, free to download. The README inside the archive explains the formats and shows how to load a frame.</p>
+          <a class="btn" href="https://doi.org/10.5281/zenodo.24217318" rel="noopener">Download the dataset</a>
+          <p class="doi">DOI 10.5281/zenodo.24217318</p>
         </div>
       </div>
     </div>

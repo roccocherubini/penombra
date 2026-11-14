@@ -22,8 +22,8 @@ and camera pose.
   Reconnaissance Orbiter, Sun 1.2–1.4° above the horizon, against Penombra renders of the
   same ground at the same instant (86–99% of pixels in the same light or shadow; the large
   shadows come from the elevation data, Penombra adds the fine grain).
-- Sample dataset v0 (24 frames, descent to the rim of Shackleton, 733 MB): coming soon on
-  Zenodo, with a short program to load it.
+- Sample dataset v0 (24 frames, descent to the rim of Shackleton, 733 MB, CC BY 4.0):
+  https://doi.org/10.5281/zenodo.24217318
 
 Custom sequences (your landing site, trajectory, date and camera) are available on request.
 
