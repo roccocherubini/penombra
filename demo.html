@@ -60,7 +60,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
 .pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 
 /* 1. descent */
-#descent { height: 420vh; }
+#descent { height: 100vh; height: 100svh; }
 #descent .pin { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(14px, 2.4vh, 26px); padding-top: 56px; }
 .frames { position: relative; width: min(54vh, 88vw); aspect-ratio: 1; max-width: 100%; overflow: hidden; flex: none; }
 .frames img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; will-change: opacity, transform; }
@@ -238,13 +238,12 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; }
 </header>
 
 <main>
-  <!-- 1. the descent, scrubbed by scrolling -->
+  <!-- 1. the descent, played once when the page opens -->
   <section class="scene" id="descent" aria-label="Descent from 2,000 m to 500 m">
     <div class="pin">
       <div class="say">
-        <h1 data-show="0 .2">How does a lander know where it is?</h1>
-        <p data-show=".24 .52">Coming down to the Moon, it has to find its own way.</p>
-        <p data-show=".56 1.01">It has a camera. <em>And a map.</em></p>
+        <h1 data-show="0 .45">How does a lander know where it is?</h1>
+        <p data-show=".52 2">It has a camera. <em>And a map.</em></p>
       </div>
       <div class="frames" id="frames" aria-hidden="true">
         <img src="assets/demo/desc-1.4-0.jpg" alt="">
@@ -479,7 +478,7 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; }
   var frames = Array.prototype.slice.call(document.querySelectorAll('#frames img'));
   var says = Array.prototype.slice.call(document.querySelectorAll('.say [data-show]'));
   var altv = document.getElementById('altv'), cue = document.getElementById('cue');
-  scrubbers.push({ el: document.getElementById('descent'), fn: function (p) {
+  function descentAt(p) {
     var x = p * (frames.length - 1), k = Math.min(Math.floor(x), frames.length - 2), s = x - k;
     frames.forEach(function (im, i) {
       var o = i === k ? 1 : (i === k + 1 ? smooth(s) : 0);
@@ -495,8 +494,32 @@ footer p { margin: 0; color: var(--dust); font-size: 13px; }
       el.style.opacity = o;
       el.style.transform = 'translateY(' + ((1 - o) * 18) + 'px)';
     });
-    cue.style.opacity = 1 - smooth(p / 0.08);
-  }});
+    cue.style.opacity = smooth((p - 0.9) / 0.1);
+  }
+  // the descent plays by itself, once, as soon as its pictures are loaded
+  (function () {
+    var DUR = 7000, t0 = null, started = false;
+    function tick(ts) {
+      if (t0 === null) t0 = ts;
+      var p = clamp((ts - t0) / DUR, 0, 1);
+      descentAt(p);
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    function start() {
+      if (started) return;
+      started = true;
+      if (reduce) { descentAt(1); return; }
+      setTimeout(function () { requestAnimationFrame(tick); }, 500);
+    }
+    descentAt(0);
+    var left = frames.length;
+    function one() { if (--left <= 0) start(); }
+    frames.forEach(function (im) {
+      if (im.complete) one();
+      else { im.addEventListener('load', one); im.addEventListener('error', one); }
+    });
+    setTimeout(start, 4000);
+  })();
 
   // ---------- link drawing (shared by the story and the lab)
   var NS = 'http://www.w3.org/2000/svg';
